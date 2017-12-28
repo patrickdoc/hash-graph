@@ -1,1 +1,6 @@
+cabal.project*
+dist*
+.*
+
 fgl-ng-profiling.*
+out.bench
