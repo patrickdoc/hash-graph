@@ -1,9 +1,6 @@
-{-# LANGUAGE BangPatterns #-}
-
-module Data.Graph.Inductive.Impl.PatriciaTree where
+module Data.Graph.Inductive.Strict where
 
 import Control.DeepSeq
-import Data.Foldable (foldlM, foldrM)
 import Data.Hashable
 import Data.List (foldl')
 import qualified Data.HashMap.Strict as HM
@@ -17,10 +14,9 @@ instance (NFData a, NFData b) => NFData (Gr a b) where
     rnf (Gr hm) = rnf hm
 
 -- | The Edge type and corresponding half edges
-data Edge a b = Edge { pred :: b, label :: a, succ :: b } deriving (Eq, Show)
+data Edge a b = Edge { pred :: !b, label :: !a, succ :: !b } deriving (Eq, Show)
 data Head a b = Head !a !b deriving (Eq, Show)
-data SmallHead = SmallHead  !Char !Int deriving (Eq, Show)
-data Tail a b = Tail a b deriving (Eq, Show)
+data Tail a b = Tail !a !b deriving (Eq, Show)
 
 instance (Hashable a, Hashable b) => Hashable (Head a b) where
     hashWithSalt p (Head a b) = hashWithSalt p a `hashWithSalt` b
@@ -28,31 +24,11 @@ instance (Hashable a, Hashable b) => Hashable (Head a b) where
 instance (NFData a, NFData b) => NFData (Head a b) where
     rnf (Head a b) = rnf a `seq` rnf b
 
-instance NFData (SmallHead) where
-    rnf (SmallHead a b) = rnf a `seq` rnf b
-
 instance (Hashable a, Hashable b) => Hashable (Tail a b) where
     hashWithSalt p (Tail a b) = hashWithSalt p a `hashWithSalt` b
 
 instance (NFData a, NFData b) => NFData (Tail a b) where
     rnf (Tail a b) = rnf a `seq` rnf b
-
-{-
-newtype Head a b = Head (a, b) deriving (Eq, Show)
-newtype Tail a b = Tail (a, b) deriving (Eq, Show)
-
-instance (Hashable a, Hashable b) => Hashable (Head a b) where
-    hashWithSalt p (Head x) = hashWithSalt p x
-
-instance (NFData a, NFData b) => NFData (Head a b) where
-    rnf (Head x) = rnf x
-
-instance (Hashable a, Hashable b) => Hashable (Tail a b) where
-    hashWithSalt p (Tail x) = hashWithSalt p x
-
-instance (NFData a, NFData b) => NFData (Tail a b) where
-    rnf (Tail x) = rnf x
--}
 
 -- | The Context of a node within the Graph type
 data Context' a b = Context' { preds :: !(HS.HashSet (Head a b))
@@ -66,12 +42,10 @@ instance (NFData a, NFData b) => NFData (Context' a b) where
 -- | Extract the Head half of a directed edge
 edgeHead :: Edge a b -> Head a b
 edgeHead (Edge p l _) = Head l p
---edgeHead (Edge p l _) = Head (l, p)
 
 -- | Extract the Tail half of a directed edge
 edgeTail :: Edge a b -> Tail a b
 edgeTail (Edge _ l s) = Tail l s
---edgeTail (Edge _ l s) = Tail (l, s)
 
 -------------------------------
 -- Graph class functions
@@ -90,11 +64,10 @@ match n (Gr graph) = case HM.lookup n graph of
     Nothing -> Nothing
 
 -- TODO: cleanup
--- foldl' :: (a -> b-> a) a -> [b] -> a
 mkGraph :: (Eq a, Eq b, Hashable a, Hashable b, NFData a, NFData b) => [Edge a b] -> [b] -> Gr a b
-mkGraph es ns = Gr $ foldl' (flip (force . insEdge)) nodeGraph es
+mkGraph es ns = Gr $ foldl' (flip insEdge) nodeGraph es
   where
-    nodeGraph = force $ HM.fromList $ map (\x -> (x, Context' HS.empty x HS.empty)) ns
+    nodeGraph = HM.fromList $ map (\x -> (x, Context' HS.empty x HS.empty)) ns
 
 {-
 mkGraph :: (Eq a, Eq b, Hashable a, Hashable b) => [Edge a b] -> [b] -> Maybe (Gr a b)
@@ -128,17 +101,12 @@ edges :: Gr a b -> [Edge a b]
 edges (Gr hm) = HM.foldl' (\lst ctx -> getTails ctx ++ lst) [] hm
   where
     getTails (Context' _ p ss) = HS.foldl' (\lst (Tail l s) -> Edge p l s : lst) [] ss
-    --getTails (Context' _ p ss) = HS.foldl' (\lst (Tail (l, s)) -> Edge p l s : lst) [] ss
 
 size :: Gr a b -> Int
 size = length . edges
 
 ------------------------------
 -- Utility functions
--- TODO: Currently unsafe? check how adjust works
-insEdge :: (Eq a, Eq b, Hashable a, Hashable b) => Edge a b -> GraphRep a b -> GraphRep a b
-insEdge e hm = insTail e (insHead e hm)
-
 -- | Insert a node, deleting the current context if the node exists
 insNode :: (Eq b, Hashable b) => b -> GraphRep a b -> GraphRep a b
 insNode n = HM.insert n (Context' HS.empty n HS.empty)
@@ -155,25 +123,27 @@ delNode n hm = case HM.lookup n hm of
     Just ctx -> HM.delete n $ delHeads ctx $ delTails ctx hm
     Nothing -> hm
 
+-- TODO: Currently unsafe? check how adjust works
+insEdge :: (Eq a, Eq b, Hashable a, Hashable b) => Edge a b -> GraphRep a b -> GraphRep a b
+insEdge e hm = insTail e (insHead e hm)
+
 -- | Remove the head ends of tails attached to the node
 delHeads :: (Eq a, Eq b, Hashable a, Hashable b) => Context' a b -> GraphRep a b -> GraphRep a b
 delHeads (Context' _ b ss) hm = HS.foldl' go hm ss
   where
     go h (Tail l s) = delHead (Head l b) s h
-    --go h (Tail (l, s)) = delHead (Head (l, b)) s h
 
 -- | Remove the tail ends of heads attached to the node
 delTails :: (Eq a, Eq b, Hashable a, Hashable b) => Context' a b -> GraphRep a b -> GraphRep a b
 delTails (Context' ps b _) hm = HS.foldl' go hm ps
   where
     go h (Head l p) = delTail (Tail l b) p h
-    --go h (Head (l, p)) = delTail (Tail (l, b)) p h
 
 -- | Insert a head into the graph
 insHead :: (Eq a, Eq b, Hashable a, Hashable b) => Edge a b -> GraphRep a b -> GraphRep a b
 insHead (Edge p l s) = HM.adjust go s
   where
-    go !(Context' ps _l _ss) = Context' (HS.insert (Head l p) ps) _l _ss
+    go (Context' ps _l _ss) = Context' (HS.insert (Head l p) ps) _l _ss
 
 -- | Remove a head from the graph
 delHead :: (Eq a, Eq b, Hashable a, Hashable b) => Head a b -> b -> GraphRep a b -> GraphRep a b

@@ -1,10 +1,13 @@
 module Main where
 
-import Data.Graph.Inductive.Impl.PatriciaTree
+import Data.Graph.Inductive.Strict
 
+{-
 import Control.DeepSeq (rnf)
-import Criterion.Main
 import Microbench
+-}
+
+import Criterion.Main
 
 main :: IO ()
 main = do --micro
@@ -29,19 +32,29 @@ buildMicro sz times = rnf [rnf (buildCompleteStatic sz) | i <- [1..times]]
 -- | Criterion benchmarks
 crit :: IO ()
 crit = defaultMain [
-    let input n = (\p s -> Edge p 'a' s) <$> [1..n] <*> [1..n]
-        small = input 100
-        med = input 500
-        large = input 1000
-    in bgroup "static" [
-      bench "100"   $ nf (buildCompleteStatic small) 100
-    , bench "500"   $ nf (buildCompleteStatic med) 500
-    , bench "1000"  $ nf (buildCompleteStatic large) 1000
-    , bench "insNode"
+    bgroup "old fgl" [
+    {-
+        bgroup "static" [
+          bench "100" $ whnf (buildFglComplete 
+        , bench "500" $ whnf 
+        , bench "1000" $ whnf 
+        ]
+    -}
+    ],
+    bgroup "fgl-ng" [
+        let input n = (\p s -> Edge p 'a' s) <$> [1..n] <*> [1..n]
+            small = input 100
+            med = input 500
+            large = input 1000
+        in bgroup "static" [
+          bench "100"   $ whnf (buildCompleteStatic small) 100
+        , bench "500"   $ whnf (buildCompleteStatic med) 500
+        , bench "1000"  $ whnf (buildCompleteStatic large) 1000
+        ]
     ]
-  ]
+    ]
 -- | Build a complete static graph using mkGraph
-buildCompleteStatic :: [Edge Char Int] -> Int -> Maybe (Gr Char Int)
+buildCompleteStatic :: [Edge Char Int] -> Int -> Gr Char Int
 buildCompleteStatic es n = mkGraph es [1..n]
 
 -- | Build a complete dynamic graph using (&)
