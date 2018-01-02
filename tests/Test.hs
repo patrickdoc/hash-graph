@@ -93,12 +93,30 @@ main = hspec $ describe "Strict Graphs" $ do
             it "is described throughout" $ True `shouldBe` True
         describe "edges" $ do
             it "is described throughout" $ True `shouldBe` True
-{-
     describe "Maps" $ do
+        let fn = (:[])
+            fe = (*(-1))
+            edgeList ns = (\x y -> G.Edge x 1 y) <$> ns <*> ns
+            gr = G.mkGraph (edgeList "ab") "ab"
         describe "node map" $ do
+            it "adjusts every node" $
+                G.nodes (G.nmap fn gr :: G.Gr Int String) `shouldBe` ["a","b"]
+            it "adjusts every edge" $
+                G.edges (G.nmap fn gr :: G.Gr Int String)
+                    `shouldBe` [ G.Edge "b" 1 "b"
+                               , G.Edge "b" 1 "a"
+                               , G.Edge "a" 1 "b"
+                               , G.Edge "a" 1 "a" ]
         describe "edge map" $ do
+            it "adjusts every edge" $
+                G.edges (G.emap fe gr :: G.Gr Int Char)
+                    `shouldBe` [ G.Edge 'b' (-1) 'b'
+                               , G.Edge 'b' (-1) 'a'
+                               , G.Edge 'a' (-1) 'b'
+                               , G.Edge 'a' (-1) 'a' ]
         describe "node and Edge map" $ do
             it "is described by node map and edge map" $ True `shouldBe` True
+{-
     describe "Folds" $ do
         describe "foldr" $ do
     describe "Queries" $ do
