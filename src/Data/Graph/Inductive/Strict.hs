@@ -19,6 +19,11 @@ data Edge a b = Edge !b !a !b  deriving (Eq, Show)
 data Head a b = Head !a !b deriving (Eq, Show)
 data Tail a b = Tail !a !b deriving (Eq, Show)
 
+instance (Hashable a, Hashable b) => Hashable (Edge a b) where
+    hashWithSalt salt (Edge p l s) = hashWithSalt salt p
+                                    `hashWithSalt` l
+                                    `hashWithSalt` s
+
 instance (Hashable a, Hashable b) => Hashable (Head a b) where
     hashWithSalt p (Head a b) = hashWithSalt p a `hashWithSalt` b
 
@@ -53,7 +58,7 @@ singleton :: (Eq b, Hashable b) => b -> Gr a b
 singleton b = Gr $ HM.singleton b (Context' HS.empty b HS.empty)
 
 -- TODO: cleanup and determine time complexity
-mkGraph :: (Eq a, Eq b, Hashable a, Hashable b, NFData a, NFData b) => [Edge a b] -> [b] -> Gr a b
+mkGraph :: (Eq a, Eq b, Hashable a, Hashable b) => [Edge a b] -> [b] -> Gr a b
 mkGraph es ns = Gr $ L.foldl' (flip insEdge) nodeGraph es
   where
     nodeGraph = HM.fromList $ map (\x -> (x, Context' HS.empty x HS.empty)) ns
