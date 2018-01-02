@@ -11,14 +11,15 @@ main = do
 --    print $ buildCompleteStatic 1000
 -- Profile HashMap.fromList for theoretical max
 --    print $!! buildBigHashMap
+    print "done!"
 
 buildBigHashMap :: Gr Char Int
-buildBigHashMap = Gr $ HM.fromList [(ids, Context' (HS.fromList heads)
+buildBigHashMap = Gr $ HM.fromList [(ids, Context' (HS.fromList hs)
                                                    ids
-                                                   (HS.fromList tails)) | ids <- [1..1000]]
+                                                   (HS.fromList ts)) | ids <- [1..1000]]
   where
-    heads = [ Head 'a' n | n <- [1..1000] ]
-    tails = [ Tail 'a' n | n <- [1..1000] ]
+    hs = [ Head 'a' n | n <- [1..1000] ]
+    ts = [ Tail 'a' n | n <- [1..1000] ]
 
 -- | Build a complete static graph using mkGraph
 buildCompleteStatic :: Int -> Gr Char Int
