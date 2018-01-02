@@ -41,14 +41,6 @@ data Context' a b = Context'
 instance (NFData a, NFData b) => NFData (Context' a b) where
     rnf (Context' ps b ss) = rnf ps `seq` rnf b `seq` rnf ss
 
--- | Extract the Head half of a directed edge
-edgeHead :: Edge a b -> Head a b
-edgeHead (Edge p l _) = Head l p
-
--- | Extract the Tail half of a directed edge
-edgeTail :: Edge a b -> Tail a b
-edgeTail (Edge _ l s) = Tail l s
-
 -------------------------------
 -- * Construction
 
@@ -253,19 +245,29 @@ hasNeighbor n1 n2 g = case g !? n1 of
 {-
  - filter:
  - - contexts
- - - nodes
- - - edges
- - - given specific nodes?
+ - - create subgraph from specific nodes?
+ - ^ could just be nfilter (`elem` [Node])
  -}
 
+-- | /O(n+e)/ Filter this graph by retaining only
+-- nodes that satisfy the predicate 'f'.
 nfilter :: (b -> Bool) -> Gr a b -> Gr a b
-nfilter f (Gr g) = Gr $ HM.fromList $ filter f' $ HM.toList g
+nfilter f (Gr g) = Gr $ HM.mapMaybe go g
   where
-    f' (n, (Context' ps n' ss)) = (f n, Context' (HS.filter (\(Head _ p) -> f p) ps)
-                                                 (f n')
-                                                 (HS.filter (\(Tail _ s) -> f s) ss)
+    go (Context' ps n ss) = case f n of
+        True -> Just (Context' (HS.filter (\(Head _ p) -> f p) ps)
+                              n
+                              (HS.filter (\(Tail _ s) -> f s) ss))
+        False -> Nothing
 
+-- | /O(n+e)/ Filter this graph by retaining only
+-- edges that satisfy the predicate 'f'.
 efilter :: (Edge a b -> Bool) -> Gr a b -> Gr a b
+efilter f (Gr g) = Gr $ HM.map go g
+  where
+    go (Context' ps n ss) = Context' (HS.filter (\(Head l p) -> f (Edge p l n)) ps)
+                                     n
+                                     (HS.filter (\(Tail l s) -> f (Edge n l s)) ss)
 
 ------------------------------
 -- * Insertion and Deletion
@@ -326,8 +328,11 @@ delTail tl = HM.adjust go
   where
     go (Context' _ps _l ss) = Context' _ps _l (HS.delete tl ss)
 
-{-
- - equality
- - build from contexts?
- - pretty printing
--}
+-----------------------------------------
+-- * Equality?
+
+----------------------------------------
+-- * Other builders?
+
+------------------------------------
+-- * Pretty Printing
