@@ -1,65 +1,54 @@
 module Main where
 
-import Data.Graph.Inductive.Strict
-
-{-
-import Control.DeepSeq (rnf)
-import Microbench
--}
+import qualified Data.Graph.Inductive.Strict as G
+import qualified Data.Graph.Inductive.PatriciaTree as Old
+import qualified Data.Graph.Inductive.Graph as Old
 
 import Criterion.Main
 
 main :: IO ()
-main = do --micro
-          crit
+main = do
+    comparisons     -- Compare against original FGL library
+    library         -- Benchmark library functionality
+    --algos           -- Benchmark graph algorithms
 
-{-
--- | microbenchmarks to match the original FGL library
-micro :: IO ()
-micro = do microbench "buildFull into Patricia tree 100" (buildMicro 100)
-           microbench "buildFull into Patricia tree 500" (buildMicro 500)
-           microbench "buildFull into Patricia tree 1000" (buildMicro 1000)
-           --microbench "insNode into Patricia Tree" insNodePatricia
-           --microbench "insEdge into Patricia tree" insEdgePatricia
-           --microbench "gmap on Patricia tree" gmapPatricia
-           --microbench "node mapping on Patricia tree" nmapPatricia
-           --microbench "edge mapping on Patricia tree" emapPatricia
+------------------------------
+-- * Comparison benchmarks
 
-buildMicro :: Int -> Int -> ()
-buildMicro sz times = rnf [rnf (buildCompleteStatic sz) | i <- [1..times]]
--}
-
--- | Criterion benchmarks
-crit :: IO ()
-crit = defaultMain [
-    bgroup "old fgl" [
-    {-
-        bgroup "static" [
-          bench "100" $ whnf (buildFglComplete 
-        , bench "500" $ whnf 
-        , bench "1000" $ whnf 
-        ]
-    -}
-    ],
-    bgroup "fgl-ng" [
-        let input n = (\p s -> Edge p 'a' s) <$> [1..n] <*> [1..n]
-            small = input 100
-            med = input 500
-            large = input 1000
-        in bgroup "static" [
-          bench "100"   $ whnf (buildCompleteStatic small) 100
-        , bench "500"   $ whnf (buildCompleteStatic med) 500
-        , bench "1000"  $ whnf (buildCompleteStatic large) 1000
-        ]
+comparisons :: IO ()
+comparisons = defaultMain
+  [ bgroup "Comparisons"
+    [ env (nsAndEs 100) (\ ~(oldEs,oldNs,newEs) -> bgroup "build/small"
+      [ bench "old" $ nf (buildOld oldEs) oldNs
+      , bench "new" $ nf (buildNew newEs) [1..100]
+      ])
+    , env (nsAndEs 500) (\ ~(oldEs,oldNs,newEs) -> bgroup "build/medium"
+      [ bench "old" $ nf (buildOld oldEs) oldNs
+      , bench "new" $ nf (buildNew newEs) [1..500]
+      ])
+    , env (nsAndEs 1000) (\ ~(oldEs,oldNs,newEs) -> bgroup "build/large"
+      [ bench "old" $ nf (buildOld oldEs) oldNs
+      , bench "new" $ nf (buildNew newEs) [1..1000]
+      ])
+    , bgroup "insert node" []
+    , bgroup "insert edge" []
+    , bgroup "gmap" []
+    -- FGL nmap does not adjust the graph, merely change the value stored there
+    -- this representational advantage is huge.
+    , env graphs (\ ~(oldSmall, oldLarge, newSmall, newLarge) -> bgroup "nmap"
+      [ bench "small/old" $ nf (Old.nmap (+1)) oldSmall
+      , bench "small/new" $ nf (G.nmap (+1)) newSmall
+      , bench "large/old" $ nf (Old.nmap (+1)) oldLarge
+      , bench "large/new" $ nf (G.nmap (+1)) newLarge
+      ])
+    , env graphs (\ ~(oldSmall, oldLarge, newSmall, newLarge) -> bgroup "emap"
+      [ bench "small/old" $ nf (Old.emap (\_ -> '1')) oldSmall
+      , bench "small/new" $ nf (G.emap (\_ -> '1')) newSmall
+      , bench "large/old" $ nf (Old.emap (\_ -> '1')) oldLarge
+      , bench "large/new" $ nf (G.emap (\_ -> '1')) newLarge
+      ])
     ]
-    ]
--- | Build a complete static graph using mkGraph
-buildCompleteStatic :: [Edge Char Int] -> Int -> Gr Char Int
-buildCompleteStatic es n = mkGraph es [1..n]
-
--- | Build a complete dynamic graph using (&)
-buildCompleteDynamic :: Int -> Gr a b
-buildCompleteDynamic = undefined
+  ]
 
 
 {-
@@ -79,3 +68,53 @@ buildCompleteDynamic = undefined
  - - folds
  - - maps
 -}
+
+------------------------------
+-- * Library benchmarks
+
+library :: IO ()
+library = defaultMain
+  [ bgroup "Library"
+    []
+  ]
+
+------------------------------
+-- * Algorithm benchmarks
+
+
+------------------------------
+-- Utilities
+
+-- | Create the inputs for complete graph construction
+nsAndEs :: Int -> IO ([(Int, Int, ())], [(Int, Int)], [G.Edge () Int])
+nsAndEs n = return (oldEdges n, oldNodes n, newEdges n)
+
+graphs :: IO (Old.Gr Int (), Old.Gr Int (), G.Gr () Int, G.Gr () Int)
+graphs = do
+    let small = 100
+        large = 1000
+        oldSmall = buildOld (oldEdges small) (oldNodes small)
+        oldLarge = buildOld (oldEdges large) (oldNodes large)
+        newSmall = buildNew (newEdges small) [1..small]
+        newLarge = buildNew (newEdges large) [1..large]
+    return (oldSmall, oldLarge, newSmall, newLarge)
+
+-- | Build a complete graph using fgl-ng
+buildNew :: [G.Edge () Int] -> [Int] -> G.Gr () Int
+buildNew es ns = G.mkGraph es ns
+
+-- | Build a complete graph using fgl
+buildOld :: [Old.LEdge ()] -> [Old.LNode Int] -> Old.Gr Int ()
+buildOld es ns = Old.mkGraph ns es
+
+-- | Generate old edges from number of nodes
+oldEdges :: Int -> [(Int, Int, ())]
+oldEdges n = (\x y -> (x,y,())) <$> [1..n] <*> [1..n]
+
+-- | Generate old nodes from number of nodes
+oldNodes :: Int -> [(Int, Int)]
+oldNodes n = map (\x -> (x,x)) [1..n]
+
+-- | Generate new edges from number of nodes
+newEdges :: Int -> [G.Edge () Int]
+newEdges n = (\x y -> G.Edge x () y) <$> [1..n] <*> [1..n]

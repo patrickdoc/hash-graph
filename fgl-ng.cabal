@@ -47,8 +47,8 @@ benchmark fgl-ng-benchmarks
   build-depends:     base >=4.10 && <4.11
                    , criterion
                    , deepseq
+                   , fgl
                    , fgl-ng
-                   , microbench
   ghc-options:       -Wall -O2
 
 executable fgl-ng-profiling

@@ -1,11 +1,72 @@
-module Data.Graph.Inductive.Strict where
+module Data.Graph.Inductive.Strict (
+      Gr(..)
+    -- * Construction
+    , empty
+    , singleton
+    , mkGraph
+
+    -- * Basic interface
+    , null
+    , order
+    , size
+    , match
+    , matchAny
+    , (!)
+    , (!?)
+    , nodes
+    , edges
+
+    -- * Maps
+    , nmap
+    , emap
+    , nemapH
+
+    -- * Folds
+    , foldr
+
+    -- * Queries
+    , member
+    , neighbors
+    , preds
+    , succs
+    , inEdges
+    , outEdges
+    , inDegree
+    , outDegree
+    , degree
+    , hasEdge
+    , hasNeighbor
+
+    -- * Filters
+    , nfilter
+    , efilter
+
+    -- * Insertion and Deletion
+    , insNode
+    , safeInsNode
+    , delNode
+    , insEdge
+    , delHeads
+    , delTails
+    , insHead
+    , delHead
+    , insTail
+    , delTail
+
+    -- The rest
+    , Context'(..)
+    , Edge(..)
+    , Edge'(..)
+    , Head(..)
+    , Tail(..)
+    ) where
 
 import Control.DeepSeq
 import Data.Hashable
 import qualified Data.List as L
 import qualified Data.HashMap.Strict as HM
 import qualified Data.HashSet as HS
-import Prelude hiding (foldr)
+import Prelude hiding (foldr, null)
 
 -- * Graph type
 type GraphRep a b = HM.HashMap b (Context' a b)
@@ -16,6 +77,7 @@ instance (NFData a, NFData b) => NFData (Gr a b) where
 
 -- | The Edge type and corresponding half edges
 data Edge a b = Edge !b !a !b  deriving (Eq, Show)
+data Edge' a b = Edge' !(Head a b) !(Tail a b) deriving (Eq, Show)
 data Head a b = Head !a !b deriving (Eq, Show)
 data Tail a b = Tail !a !b deriving (Eq, Show)
 
@@ -23,6 +85,9 @@ instance (Hashable a, Hashable b) => Hashable (Edge a b) where
     hashWithSalt salt (Edge p l s) = hashWithSalt salt p
                                     `hashWithSalt` l
                                     `hashWithSalt` s
+
+instance (NFData a, NFData b) => NFData (Edge a b) where
+    rnf (Edge p l s) = rnf p `seq` rnf l `seq` rnf s
 
 instance (Hashable a, Hashable b) => Hashable (Head a b) where
     hashWithSalt p (Head a b) = hashWithSalt p a `hashWithSalt` b
@@ -58,30 +123,25 @@ singleton :: (Eq b, Hashable b) => b -> Gr a b
 singleton b = Gr $ HM.singleton b (Context' HS.empty b HS.empty)
 
 -- TODO: cleanup and determine time complexity
-mkGraph :: (Eq a, Eq b, Hashable a, Hashable b) => [Edge a b] -> [b] -> Gr a b
-mkGraph es ns = Gr $ L.foldl' (flip insEdge) nodeGraph es
-  where
-    nodeGraph = HM.fromList $ map (\x -> (x, Context' HS.empty x HS.empty)) ns
-
-{-
 -- | Construct a graph from the given edges and nodes
-mkGraph :: (Eq a, Eq b, Hashable a, Hashable b) => [Edge a b] -> [b] -> Maybe (Gr a b)
-mkGraph es ns = Just $ Gr $ withBoth
+mkGraph :: (Eq a, Eq b, Hashable a, Hashable b) => [Edge a b] -> [b] -> Gr a b
+mkGraph es ns = Gr withBoth
   where
     groupAndModHead _ [] = []
-    groupAndModHead eq (x@(Edge p l s):xs) = (s, Head (l, p) : map edgeHead ys) : groupAndModHead eq zs
+    groupAndModHead eq (x@(Edge p l s):xs) = (s, Head l p : map (\(Edge p' l' _) -> Head l' p') ys) : groupAndModHead eq zs
                                            where (ys, zs) = span (eq x) xs
     groupAndModTail _ [] = []
-    groupAndModTail eq (x@(Edge p l s):xs) = (p, Tail (l, s) : map edgeTail ys) : groupAndModTail eq zs
+    groupAndModTail eq (x@(Edge p l s):xs) = (p, Tail l s : map (\(Edge _ l' s') -> Tail l' s') ys) : groupAndModTail eq zs
                                            where (ys, zs) = span (eq x) xs
-    heads = groupAndModHead (\(Edge _ _ x) (Edge _ _ y) -> x == y) es
-    tails = groupAndModTail (\(Edge x _ _) (Edge y _ _) -> x == y) es
-    tailMap = HM.fromList $ map (\(x, ls) -> (x, Context' HS.empty x (HS.fromList ls))) tails
-    headMap = HM.fromList $ map (\(x, ls) -> (x, Context' (HS.fromList ls) x HS.empty)) heads
+
+    allHeads = groupAndModHead (\(Edge _ _ x) (Edge _ _ y) -> x == y) es
+    allTails = groupAndModTail (\(Edge x _ _) (Edge y _ _) -> x == y) es
+    tailMap = HM.fromList $ map (\(x, ls) -> (x, Context' HS.empty x (HS.fromList ls))) allTails
+    headMap = HM.fromList $ map (\(x, ls) -> (x, Context' (HS.fromList ls) x HS.empty)) allHeads
+
     nds = HM.fromList [ (n, Context' HS.empty n HS.empty) | n <- ns ]
     withTails = HM.unionWith (\x _ -> x) tailMap nds
     withBoth = HM.unionWith (\(Context' hs x _) (Context' _ _ ts) -> Context' hs x ts) headMap withTails
--}
 
 -------------------------------
 -- * Basic interface
@@ -154,9 +214,18 @@ edges (Gr hm) = HM.foldl' (\lst ctx -> getTails ctx ++ lst) [] hm
 nmap :: (Eq a, Eq c, Hashable a, Hashable c) => (b -> c) -> Gr a b -> Gr a c
 nmap = nemapH id
 
+emap :: (Eq b, Eq c, Hashable b, Hashable c) => (a -> c) -> Gr a b -> Gr c b
+emap fe = nemapH fe id
+
+{-
 -- | Map /f/ over the edges.
 emap :: (Eq b, Eq c, Hashable b, Hashable c) => (a -> c) -> Gr a b -> Gr c b
-emap f = nemapH f id
+emap fe (Gr g) = Gr $ HM.map go g
+  where
+    go (Context' ps l ss) = Context' (goHead ps) l (goTail ss)
+    goHead = HS.map (\(Head l p) -> Head (fe l) p)
+    goTail = HS.map (\(Tail l s) -> Tail (fe l) s)
+-}
 
 -- HashMap based
 -- | Map /fe/ over the edges and /fn/ over the nodes.
