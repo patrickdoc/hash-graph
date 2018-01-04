@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveGeneric #-}
+
 module Data.Graph.Inductive.Strict (
       Gr(..)
     -- * Construction
@@ -53,10 +55,14 @@ module Data.Graph.Inductive.Strict (
     , insTail
     , delTail
 
+    -- * Lists
+    , toList
+    , fromList
+    , fromListWith
+
     -- The rest
     , Context'(..)
     , Edge(..)
-    , Edge'(..)
     , Head(..)
     , Tail(..)
     ) where
@@ -66,6 +72,7 @@ import Data.Hashable
 import qualified Data.List as L
 import qualified Data.HashMap.Strict as HM
 import qualified Data.HashSet as HS
+import GHC.Generics
 import Prelude hiding (foldr, null)
 
 -- * Graph type
@@ -76,40 +83,26 @@ instance (NFData a, NFData b) => NFData (Gr a b) where
     rnf (Gr hm) = rnf hm
 
 -- | The Edge type and corresponding half edges
-data Edge a b = Edge !b !a !b  deriving (Eq, Show)
-data Edge' a b = Edge' !(Head a b) !(Tail a b) deriving (Eq, Show)
-data Head a b = Head !a !b deriving (Eq, Show)
-data Tail a b = Tail !a !b deriving (Eq, Show)
+data Edge a b = Edge !b !a !b  deriving (Eq, Generic, Show)
+data Head a b = Head !a !b deriving (Eq, Generic, Show)
+data Tail a b = Tail !a !b deriving (Eq, Generic, Show)
 
-instance (Hashable a, Hashable b) => Hashable (Edge a b) where
-    hashWithSalt salt (Edge p l s) = hashWithSalt salt p
-                                    `hashWithSalt` l
-                                    `hashWithSalt` s
+instance (Hashable a, Hashable b) => Hashable (Edge a b)
+instance (Hashable a, Hashable b) => Hashable (Head a b)
+instance (Hashable a, Hashable b) => Hashable (Tail a b)
 
-instance (NFData a, NFData b) => NFData (Edge a b) where
-    rnf (Edge p l s) = rnf p `seq` rnf l `seq` rnf s
-
-instance (Hashable a, Hashable b) => Hashable (Head a b) where
-    hashWithSalt p (Head a b) = hashWithSalt p a `hashWithSalt` b
-
-instance (NFData a, NFData b) => NFData (Head a b) where
-    rnf (Head a b) = rnf a `seq` rnf b
-
-instance (Hashable a, Hashable b) => Hashable (Tail a b) where
-    hashWithSalt p (Tail a b) = hashWithSalt p a `hashWithSalt` b
-
-instance (NFData a, NFData b) => NFData (Tail a b) where
-    rnf (Tail a b) = rnf a `seq` rnf b
+instance (NFData a, NFData b) => NFData (Edge a b)
+instance (NFData a, NFData b) => NFData (Head a b)
+instance (NFData a, NFData b) => NFData (Tail a b)
 
 -- | The Context of a node within the Graph type
 data Context' a b = Context'
     { heads :: !(HS.HashSet (Head a b)) -- ^ Predecessors of the node
     , self  :: !b                       -- ^ The node label
     , tails :: !(HS.HashSet (Tail a b)) -- ^ Successors of the node
-    } deriving (Eq, Show)
+    } deriving (Eq, Generic, Show)
 
-instance (NFData a, NFData b) => NFData (Context' a b) where
-    rnf (Context' ps b ss) = rnf ps `seq` rnf b `seq` rnf ss
+instance (NFData a, NFData b) => NFData (Context' a b)
 
 -------------------------------
 -- * Construction
@@ -125,23 +118,9 @@ singleton b = Gr $ HM.singleton b (Context' HS.empty b HS.empty)
 -- TODO: cleanup and determine time complexity
 -- | Construct a graph from the given edges and nodes
 mkGraph :: (Eq a, Eq b, Hashable a, Hashable b) => [Edge a b] -> [b] -> Gr a b
-mkGraph es ns = Gr withBoth
+mkGraph es ns = Gr $ L.foldl' (flip insEdge) nodeGraph es
   where
-    groupAndModHead _ [] = []
-    groupAndModHead eq (x@(Edge p l s):xs) = (s, Head l p : map (\(Edge p' l' _) -> Head l' p') ys) : groupAndModHead eq zs
-                                           where (ys, zs) = span (eq x) xs
-    groupAndModTail _ [] = []
-    groupAndModTail eq (x@(Edge p l s):xs) = (p, Tail l s : map (\(Edge _ l' s') -> Tail l' s') ys) : groupAndModTail eq zs
-                                           where (ys, zs) = span (eq x) xs
-
-    allHeads = groupAndModHead (\(Edge _ _ x) (Edge _ _ y) -> x == y) es
-    allTails = groupAndModTail (\(Edge x _ _) (Edge y _ _) -> x == y) es
-    tailMap = HM.fromList $ map (\(x, ls) -> (x, Context' HS.empty x (HS.fromList ls))) allTails
-    headMap = HM.fromList $ map (\(x, ls) -> (x, Context' (HS.fromList ls) x HS.empty)) allHeads
-
-    nds = HM.fromList [ (n, Context' HS.empty n HS.empty) | n <- ns ]
-    withTails = HM.unionWith (\x _ -> x) tailMap nds
-    withBoth = HM.unionWith (\(Context' hs x _) (Context' _ _ ts) -> Context' hs x ts) headMap withTails
+    nodeGraph = HM.fromList $ map (\x -> (x, Context' HS.empty x HS.empty)) ns
 
 -------------------------------
 -- * Basic interface
@@ -195,7 +174,7 @@ infixl 9 !, !?
 -- | /O(n)/ Return a list of the nodes in the graph.
 -- The list is produced lazily
 nodes :: Gr a b -> [b]
-nodes (Gr g) = [ node | (node, _) <- HM.toList g ]
+nodes g = [ node | (node, _) <- toList g ]
 
 -- TODO: Determine time complexity
 -- | /O(?)/ Return a list of the edges in the graph
@@ -230,7 +209,7 @@ emap fe (Gr g) = Gr $ HM.map go g
 -- HashMap based
 -- | Map /fe/ over the edges and /fn/ over the nodes.
 nemapH :: (Eq c, Eq d, Hashable c, Hashable d) => (a -> c) -> (b -> d) -> Gr a b -> Gr c d
-nemapH fe fn (Gr g) = Gr $ HM.fromList $ map go $ HM.toList g
+nemapH fe fn g = fromList $ map go $ toList g
   where
     go (n, (Context' ps _ ss)) = (fn n, (Context' (goHead ps) (fn n) (goTail ss)))
     goHead = HS.map (\(Head l p) -> Head (fe l) (fn p))
@@ -256,7 +235,7 @@ instance Foldable (Gr a) where
 
 -- | HashMap based
 foldr :: (b -> c -> c) -> c -> Gr a b -> c
-foldr f x (Gr g) = L.foldr (\(n, _) c -> f n c) x $ HM.toList g
+foldr f x g = L.foldr (\(n, _) c -> f n c) x $ toList g
 
 ------------------------------------
 -- * Queries
@@ -267,7 +246,7 @@ member n (Gr g) = HM.member n g
 
 -- | /O(?)/ Return a list of the neighbors of the given node.
 neighbors :: (Eq b, Hashable b) => b -> Gr a b -> Maybe [b]
-neighbors n g = (++) <$> hs <*> ts
+neighbors n g = L.nub <$> ((++) <$> hs <*> ts)
   where
     ctx = g !? n
     hs = HS.foldl' (\ls (Head _ p) -> p : ls) [] . heads <$> ctx
@@ -406,7 +385,22 @@ delTail tl = HM.adjust go
 -- * Equality?
 
 ----------------------------------------
--- * Other builders?
+-- * Lists
+
+-- | /O(n)/ Return a list of this graph's elements. The list is
+-- produced lazily. The order of its elements is unspecified.
+toList :: Gr a b -> [(b, Context' a b)]
+toList (Gr g) = HM.toList g
+
+-- | /O(n)/ Construct a graph with the supplied structure. If the
+-- list contains duplicate nodes, the later edges take precedence.
+fromList :: (Eq b, Hashable b) => [(b, Context' a b)] -> Gr a b 
+fromList = Gr . HM.fromList 
+
+-- | /O(n*log n)/ Construct a graph with the supplied structure. Uses
+-- the provided function to merge duplicate entries.
+fromListWith :: (Eq b, Hashable b) => (Context' a b -> Context' a b -> Context' a b) -> [(b, Context' a b)] -> Gr a b 
+fromListWith f = Gr . HM.fromListWith f
 
 ------------------------------------
 -- * Pretty Printing
