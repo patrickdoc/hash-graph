@@ -48,12 +48,6 @@ module Data.Graph.Inductive.Strict (
     , safeInsNode
     , delNode
     , insEdge
-    , delHeads
-    , delTails
-    , insHead
-    , delHead
-    , insTail
-    , delTail
 
     -- * Lists
     , toList
@@ -72,6 +66,7 @@ import Data.Hashable
 import qualified Data.List as L
 import qualified Data.HashMap.Strict as HM
 import qualified Data.HashSet as HS
+import Data.Maybe (fromMaybe)
 import GHC.Generics
 import Prelude hiding (foldr, null)
 
@@ -118,9 +113,10 @@ singleton b = Gr $ HM.singleton b (Context' HS.empty b HS.empty)
 -- TODO: cleanup and determine time complexity
 -- | Construct a graph from the given edges and nodes
 mkGraph :: (Eq a, Eq b, Hashable a, Hashable b) => [Edge a b] -> [b] -> Gr a b
-mkGraph es ns = Gr $ L.foldl' (flip insEdge) nodeGraph es
+mkGraph es ns = L.foldl' (flip insEdge) nodeGraph es
   where
-    nodeGraph = HM.fromList $ map (\x -> (x, Context' HS.empty x HS.empty)) ns
+    nodeGraph = Gr $ HM.fromList $ map (\x -> (x, Context' HS.empty x HS.empty)) ns
+{-# INLINE mkGraph #-}
 
 -------------------------------
 -- * Basic interface
@@ -140,9 +136,9 @@ size = length . edges
 
 -- | Extract a node from the graph
 match :: (Eq a, Eq b, Hashable a, Hashable b) => b -> Gr a b -> Maybe (Context' a b, Gr a b)
-match n (Gr graph) = case HM.lookup n graph of
-    Just ctx -> let newGraph = delNode n graph
-                in Just (ctx, Gr newGraph)
+match n g = case g !? n of
+    Just ctx -> let newGraph = delNode n g
+                in Just (ctx, newGraph)
     Nothing -> Nothing
 
 -- | Extract any node from the graph
@@ -162,14 +158,13 @@ infixl 9 !, !?
 -- | /O(log n)/ Return the 'Context' of a node in the graph.
 -- Call 'error' if the node is not in the graph.
 (!) :: (Eq b, Hashable b) => Gr a b -> b -> Context' a b
-(!) g n = case g !? n of
-    Just ctx -> ctx
-    Nothing -> error "Data.Graph.Inductive.Strict.(!): node not found"
+(!) g n = fromMaybe (error "Data.Graph.Inductive.Strict.(!): node not found") $ g !? n
 
 -- | /O(log n)/ Return the 'Context' of a node if it is in the graph,
 -- or 'Nothing' if it is not.
 (!?) :: (Eq b, Hashable b) => Gr a b -> b -> Maybe (Context' a b)
 (!?) (Gr graph) n = HM.lookup n graph
+{-# INLINE (!?) #-}
 
 -- | /O(n)/ Return a list of the nodes in the graph.
 -- The list is produced lazily
@@ -211,7 +206,7 @@ emap fe (Gr g) = Gr $ HM.map go g
 nemapH :: (Eq c, Eq d, Hashable c, Hashable d) => (a -> c) -> (b -> d) -> Gr a b -> Gr c d
 nemapH fe fn g = fromList $ map go $ toList g
   where
-    go (n, (Context' ps _ ss)) = (fn n, (Context' (goHead ps) (fn n) (goTail ss)))
+    go (n, Context' ps _ ss) = (fn n, Context' (goHead ps) (fn n) (goTail ss))
     goHead = HS.map (\(Head l p) -> Head (fe l) (fn p))
     goTail = HS.map (\(Tail l s) -> Tail (fe l) (fn s))
 
@@ -307,11 +302,11 @@ hasNeighbor n1 n2 g = case g !? n1 of
 nfilter :: (b -> Bool) -> Gr a b -> Gr a b
 nfilter f (Gr g) = Gr $ HM.mapMaybe go g
   where
-    go (Context' ps n ss) = case f n of
-        True -> Just (Context' (HS.filter (\(Head _ p) -> f p) ps)
-                              n
-                              (HS.filter (\(Tail _ s) -> f s) ss))
-        False -> Nothing
+    go (Context' ps n ss) = if f n
+        then Just (Context' (HS.filter (\(Head _ p) -> f p) ps)
+                            n
+                            (HS.filter (\(Tail _ s) -> f s) ss))
+        else Nothing
 
 -- | /O(n+e)/ Filter this graph by retaining only
 -- edges that satisfy the predicate 'f'.
@@ -326,30 +321,32 @@ efilter f (Gr g) = Gr $ HM.map go g
 -- * Insertion and Deletion
 
 -- | Insert a node, deleting the current context if the node exists
-insNode :: (Eq b, Hashable b) => b -> GraphRep a b -> GraphRep a b
-insNode n = HM.insert n (Context' HS.empty n HS.empty)
+insNode :: (Eq b, Hashable b) => b -> Gr a b -> Gr a b
+insNode n (Gr g) = Gr $ HM.insert n (Context' HS.empty n HS.empty) g
 
 -- | Insert a node only if it does not already exist in the graph
-safeInsNode :: (Eq b, Hashable b) => b -> GraphRep a b -> GraphRep a b
-safeInsNode n g = case HM.lookup n g of
+safeInsNode :: (Eq b, Hashable b) => b -> Gr a b -> Gr a b
+safeInsNode n g = case g !? n of
     Just _ -> g
-    Nothing -> HM.insert n (Context' HS.empty n HS.empty) g
+    Nothing -> insNode n g
 
 -- | Remove a node and its edges
-delNode :: (Eq a, Eq b, Hashable a, Hashable b) => b -> GraphRep a b -> GraphRep a b
-delNode n hm = case HM.lookup n hm of
-    Just ctx -> HM.delete n $ delHeads ctx $ delTails ctx hm
-    Nothing -> hm
+delNode :: (Eq a, Eq b, Hashable a, Hashable b) => b -> Gr a b -> Gr a b
+delNode n g@(Gr graph) = case g !? n of
+    Just ctx -> Gr $ delHeads ctx $ delTails ctx $ HM.delete n graph
+    Nothing -> g
 
 -- TODO: Currently unsafe? check how adjust works
-insEdge :: (Eq a, Eq b, Hashable a, Hashable b) => Edge a b -> GraphRep a b -> GraphRep a b
-insEdge e hm = insTail e (insHead e hm)
+insEdge :: (Eq a, Eq b, Hashable a, Hashable b) => Edge a b -> Gr a b -> Gr a b
+insEdge e (Gr g) = Gr $ insTail e (insHead e g)
+{-# INLINE insEdge #-}
 
 -- | Remove the head ends of tails attached to the node
 delHeads :: (Eq a, Eq b, Hashable a, Hashable b) => Context' a b -> GraphRep a b -> GraphRep a b
-delHeads (Context' _ b ss) hm = HS.foldl' go hm ss
+delHeads (Context' _ b ss) g = HS.foldl' go g ss
   where
-    go h (Tail l s) = delHead (Head l b) s h
+    go hm (Tail l s) = delHead (Head l b) s hm
+
 
 -- | Remove the tail ends of heads attached to the node
 delTails :: (Eq a, Eq b, Hashable a, Hashable b) => Context' a b -> GraphRep a b -> GraphRep a b
@@ -362,6 +359,7 @@ insHead :: (Eq a, Eq b, Hashable a, Hashable b) => Edge a b -> GraphRep a b -> G
 insHead (Edge p l s) = HM.adjust go s
   where
     go (Context' ps _l _ss) = Context' (HS.insert (Head l p) ps) _l _ss
+{-# INLINE insHead #-}
 
 -- | Remove a head from the graph
 delHead :: (Eq a, Eq b, Hashable a, Hashable b) => Head a b -> b -> GraphRep a b -> GraphRep a b
@@ -374,6 +372,7 @@ insTail :: (Eq a, Eq b, Hashable a, Hashable b) => Edge a b -> GraphRep a b -> G
 insTail (Edge p l s) = HM.adjust go p
   where
     go (Context' _ps _l ss) = Context' _ps _l (HS.insert (Tail l s) ss)
+{-# INLINE insTail #-}
 
 -- | Remove a tail from the graph
 delTail :: (Eq a, Eq b, Hashable a, Hashable b) => Tail a b -> b -> GraphRep a b -> GraphRep a b
@@ -394,12 +393,13 @@ toList (Gr g) = HM.toList g
 
 -- | /O(n)/ Construct a graph with the supplied structure. If the
 -- list contains duplicate nodes, the later edges take precedence.
-fromList :: (Eq b, Hashable b) => [(b, Context' a b)] -> Gr a b 
-fromList = Gr . HM.fromList 
+fromList :: (Eq b, Hashable b) => [(b, Context' a b)] -> Gr a b
+fromList = Gr . HM.fromList
+{-# INLINE fromList #-}
 
 -- | /O(n*log n)/ Construct a graph with the supplied structure. Uses
 -- the provided function to merge duplicate entries.
-fromListWith :: (Eq b, Hashable b) => (Context' a b -> Context' a b -> Context' a b) -> [(b, Context' a b)] -> Gr a b 
+fromListWith :: (Eq b, Hashable b) => (Context' a b -> Context' a b -> Context' a b) -> [(b, Context' a b)] -> Gr a b
 fromListWith f = Gr . HM.fromListWith f
 
 ------------------------------------
