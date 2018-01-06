@@ -20,18 +20,20 @@ main = do
 comparisons :: IO ()
 comparisons = defaultMain
   [ bgroup "comparisons"
+    
+    -- Compare to original FGL benchmarks
     [ bgroup "fgl"
       [ bgroup "build"
         [ bgroup "small"  $ sizedBuild 100
         , bgroup "medium" $ sizedBuild 500
         , bgroup "large"  $ sizedBuild 1000
         ]
-      , bgroup "insert node"
+      , bgroup "insNode"
         [ bgroup "small"  $ sizedFuncCompare (Old.insNode (101, 101)) (G.insNode 101) 100
         , bgroup "medium" $ sizedFuncCompare (Old.insNode (501, 501)) (G.insNode 501) 500
         , bgroup "large"  $ sizedFuncCompare (Old.insNode (1001, 1001)) (G.insNode 1001) 1000
         ]
-      , bgroup "insert edge"
+      , bgroup "insEdge"
         [ bgroup "small"  $ sizedFuncCompare (Old.insEdge (1,1,())) (G.insEdge (G.Edge 1 () 1)) 100
         , bgroup "medium" $ sizedFuncCompare (Old.insEdge (1,1,())) (G.insEdge (G.Edge 1 () 1)) 500
         , bgroup "large"  $ sizedFuncCompare (Old.insEdge (1,1,())) (G.insEdge (G.Edge 1 () 1)) 1000
@@ -56,12 +58,82 @@ comparisons = defaultMain
         , bgroup "large"  $ sizedFuncCompare (Old.emap (const '1')) (G.emap (const '1')) 1000
         ]
       ]
+
+    -- Compare the rest of the functions
     , bgroup "all"
-      [ bgroup "match"
-        [ bgroup "small"  $ sizedFuncCompare (Old.match 1) (G.match 1) 100
-        , bgroup "medium" $ sizedFuncCompare (Old.match 1) (G.match 1) 500
-        , bgroup "large"  $ sizedFuncCompare (Old.match 1) (G.match 1) 1000
+
+      -- Basic Interface
+      [ bgroup "basic"
+        [ bgroup "match"
+          [ bgroup "small"  $ sizedFuncCompare (Old.match 1) (G.match 1) 100
+          , bgroup "medium" $ sizedFuncCompare (Old.match 1) (G.match 1) 500
+          , bgroup "large"  $ sizedFuncCompare (Old.match 1) (G.match 1) 1000
+          ]
+        , bgroup "matchAny"
+          [ bgroup "small"  $ sizedFuncCompare Old.matchAny G.matchAny 100
+          , bgroup "medium" $ sizedFuncCompare Old.matchAny G.matchAny 500
+          , bgroup "large"  $ sizedFuncCompare Old.matchAny G.matchAny 1000
+          ]
+        , bgroup "nodes"
+          [ bgroup "small"  $ sizedFuncCompare Old.labNodes G.nodes 100
+          , bgroup "medium" $ sizedFuncCompare Old.labNodes G.nodes 500
+          , bgroup "large"  $ sizedFuncCompare Old.labNodes G.nodes 1000
+          ]
+        , bgroup "order"
+          [ bgroup "small"  $ sizedFuncCompare Old.order G.order 100
+          , bgroup "medium" $ sizedFuncCompare Old.order G.order 500
+          , bgroup "large"  $ sizedFuncCompare Old.order G.order 1000
+          ]
+        , bgroup "edges"
+          [ bgroup "small"  $ sizedFuncCompare Old.labEdges G.edges 100
+          , bgroup "medium" $ sizedFuncCompare Old.labEdges G.edges 500
+          , bgroup "large"  $ sizedFuncCompare Old.labEdges G.edges 1000
+          ]
+        , bgroup "size"
+          [ bgroup "small"  $ sizedFuncCompare Old.size G.size 100
+          , bgroup "medium" $ sizedFuncCompare Old.size G.size 500
+          , bgroup "large"  $ sizedFuncCompare Old.size G.size 1000
+          ]
+{-
+        , bgroup "(&)"
+          [ bgroup "small"  $ sizedFuncCompare Old.(&) G.(&) 100
+          , bgroup "medium" $ sizedFuncCompare Old.(&) G.(&) 500
+          , bgroup "large"  $ sizedFuncCompare Old.(&) G.(&) 1000
+          ]
+-}
         ]
+{-
+ - Comparisons to make
+ -
+ - foldr
+ - member (node)
+ - member (edge)
+ - insNodes
+ - delNodes
+ - delEdge
+ - insEdges
+ - delEdges
+ -
+ - gfilter
+ - nfilter
+ - efilter
+ - filter (node `elem` lsNodes)
+ -
+ - neighbors
+ - succs
+ - preds
+ - outs
+ - ins
+ - outDeg
+ - inDeg
+ - deg
+ - hasEdge
+ - hasNeighbor
+ -
+ - equality
+ -
+ -}
+      , bgroup "others" []
       ]
     ]
   ]
@@ -82,22 +154,12 @@ sizedFuncCompare oldF newF n
       in [ bench "old" $ nf oldF oldGraph
          , bench "new" $ nf newF newGraph ]
 
-
-{-
- - Comparisons to make
- -
- - static:
- - - project to nodes and edges
- - - ordered match
- - - match any
- -
- - dynamic:
- - - insert node
- - - insert edge
- -
- - other:
- - - folds
--}
+-- | Compare equivalent new functions applied to graphs of given size
+sizedImplCompare :: (NFData a) => (G.Gr () Int -> a) -> (G.Gr () Int -> a) -> Int -> [Benchmark]
+sizedImplCompare f1 f2 n
+    = let graph = buildNew (newEdges n) [1..n]
+      in [ bench "f1" $ nf f1 graph
+         , bench "f2" $ nf f2 graph ]
 
 ------------------------------
 -- * Library benchmarks

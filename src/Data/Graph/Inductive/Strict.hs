@@ -1,7 +1,9 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Data.Graph.Inductive.Strict (
+    -- * Graph Type
       Gr(..)
+
     -- * Construction
     , empty
     , singleton
@@ -70,7 +72,7 @@ import Data.Maybe (fromMaybe)
 import GHC.Generics
 import Prelude hiding (foldr, null)
 
--- * Graph type
+-- Graph type
 type GraphRep a b = HM.HashMap b (Context' a b)
 newtype Gr a b = Gr (GraphRep a b) deriving (Eq, Show)
 
@@ -100,7 +102,7 @@ data Context' a b = Context'
 instance (NFData a, NFData b) => NFData (Context' a b)
 
 -------------------------------
--- * Construction
+-- Construction
 
 -- | /O(1)/ Construct an empty graph
 empty :: Gr a b
@@ -119,7 +121,7 @@ mkGraph es ns = L.foldl' (flip insEdge) nodeGraph es
 {-# INLINE mkGraph #-}
 
 -------------------------------
--- * Basic interface
+-- Basic interface
 
 -- | /O(1)/ Return 'True' if this graph is empty, 'False' otherwise
 null :: Gr a b -> Bool
@@ -132,7 +134,7 @@ order (Gr g) = HM.size g
 -- TODO: Determine time complexity
 -- | /O(?)/ Return the number of edges in the graph
 size :: Gr a b -> Int
-size = length . edges
+size = L.foldl' (\c (_, Context' ps _ _) -> c + HS.size ps) 0 . toList
 
 -- | Extract a node from the graph
 match :: (Eq a, Eq b, Hashable a, Hashable b) => b -> Gr a b -> Maybe (Context' a b, Gr a b)
@@ -179,7 +181,7 @@ edges (Gr hm) = HM.foldl' (\lst ctx -> getTails ctx ++ lst) [] hm
     getTails (Context' _ p ss) = HS.foldl' (\lst (Tail l s) -> Edge p l s : lst) [] ss
 
 --------------------------------------
--- * Maps
+-- Maps
 
 -- TODO: Clarify collisions after mapping
 -- TODO: Consider cmap for contexts
@@ -188,10 +190,6 @@ edges (Gr hm) = HM.foldl' (\lst ctx -> getTails ctx ++ lst) [] hm
 nmap :: (Eq a, Eq c, Hashable a, Hashable c) => (b -> c) -> Gr a b -> Gr a c
 nmap = nemapH id
 
-emap :: (Eq b, Eq c, Hashable b, Hashable c) => (a -> c) -> Gr a b -> Gr c b
-emap fe = nemapH fe id
-
-{-
 -- | Map /f/ over the edges.
 emap :: (Eq b, Eq c, Hashable b, Hashable c) => (a -> c) -> Gr a b -> Gr c b
 emap fe (Gr g) = Gr $ HM.map go g
@@ -199,7 +197,6 @@ emap fe (Gr g) = Gr $ HM.map go g
     go (Context' ps l ss) = Context' (goHead ps) l (goTail ss)
     goHead = HS.map (\(Head l p) -> Head (fe l) p)
     goTail = HS.map (\(Tail l s) -> Tail (fe l) s)
--}
 
 -- HashMap based
 -- | Map /fe/ over the edges and /fn/ over the nodes.
@@ -223,7 +220,7 @@ nemapI fe fn g = case matchAny g of
 -}
 
 ---------------------------------------
--- * Folds
+-- Folds
 
 instance Foldable (Gr a) where
     foldr = foldr
@@ -233,7 +230,7 @@ foldr :: (b -> c -> c) -> c -> Gr a b -> c
 foldr f x g = L.foldr (\(n, _) c -> f n c) x $ toList g
 
 ------------------------------------
--- * Queries
+-- Queries
 
 -- | /O(log n)/ Return 'True' if the given node is in the graph, 'False' otherwise.
 member :: (Eq b, Hashable b) => b -> Gr a b -> Bool
@@ -288,7 +285,7 @@ hasNeighbor n1 n2 g = case g !? n1 of
     Nothing -> False
 
 -----------------------------
--- * Filters
+-- Filters
 
 {-
  - filter:
@@ -318,7 +315,7 @@ efilter f (Gr g) = Gr $ HM.map go g
                                      (HS.filter (\(Tail l s) -> f (Edge n l s)) ss)
 
 ------------------------------
--- * Insertion and Deletion
+--  Insertion and Deletion
 
 -- | Insert a node, deleting the current context if the node exists
 insNode :: (Eq b, Hashable b) => b -> Gr a b -> Gr a b
@@ -381,10 +378,10 @@ delTail tl = HM.adjust go
     go (Context' _ps _l ss) = Context' _ps _l (HS.delete tl ss)
 
 -----------------------------------------
--- * Equality?
+-- Equality?
 
 ----------------------------------------
--- * Lists
+-- Lists
 
 -- | /O(n)/ Return a list of this graph's elements. The list is
 -- produced lazily. The order of its elements is unspecified.
@@ -403,4 +400,4 @@ fromListWith :: (Eq b, Hashable b) => (Context' a b -> Context' a b -> Context' 
 fromListWith f = Gr . HM.fromListWith f
 
 ------------------------------------
--- * Pretty Printing
+-- Pretty Printing
