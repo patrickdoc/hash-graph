@@ -60,11 +60,11 @@ main = hspec $ describe "Strict Graphs" $ do
 
     -- Basic Interface
     describe "Basic Interface" $ do
-        describe "null" $ do
+        describe "null" $
             it "is described throughout" $ True `shouldBe` True
-        describe "order" $ do
+        describe "order" $
             it "is described throughout" $ True `shouldBe` True
-        describe "size" $ do
+        describe "size" $
             it "is described throughout" $ True `shouldBe` True
         describe "match" $ do
             let gr = G.mkGraph [] ['a'] :: TestGraph
@@ -91,9 +91,9 @@ main = hspec $ describe "Strict Graphs" $ do
                 gr G.!? 'a' `shouldBe` Just (G.Context' HS.empty 'a' HS.empty)
             it "doesn't find nodes not in the graph" $
                 gr G.!? 'b' `shouldBe` Nothing
-        describe "nodes" $ do
+        describe "nodes" $
             it "is described throughout" $ True `shouldBe` True
-        describe "edges" $ do
+        describe "edges" $
             it "is described throughout" $ True `shouldBe` True
 
     -- Maps
@@ -111,22 +111,23 @@ main = hspec $ describe "Strict Graphs" $ do
                                , G.Edge "b" 1 "a"
                                , G.Edge "a" 1 "b"
                                , G.Edge "a" 1 "a" ]
-        describe "edge map" $ do
+        describe "edge map" $
             it "adjusts every edge" $
                 G.edges (G.emap fe gr :: G.Gr Int Char)
                     `shouldBe` [ G.Edge 'b' (-1) 'b'
                                , G.Edge 'b' (-1) 'a'
                                , G.Edge 'a' (-1) 'b'
                                , G.Edge 'a' (-1) 'a' ]
-        describe "node and Edge map" $ do
+        describe "node and Edge map" $
             it "is described by node map and edge map" $ True `shouldBe` True
 
     -- Folds
-    describe "Folds" $ do
-        describe "foldr" $ do
+    describe "Folds" $
+        describe "foldr" $
             prop "works like a list" $
-                \ns -> let graph = G.mkGraph [] ns :: TestGraph
-                       in length (G.foldr (:) [] graph)
+                \ns ->
+                    let graph = G.mkGraph [] ns :: TestGraph in
+                    length (G.foldr (:) [] graph)
                           === length (foldr (:) [] (nub ns))
 
     -- Queries
