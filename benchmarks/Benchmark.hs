@@ -20,7 +20,7 @@ main = do
 comparisons :: IO ()
 comparisons = defaultMain
   [ bgroup "comparisons"
-    
+
     -- Compare to original FGL benchmarks
     [ bgroup "fgl"
       [ bgroup "build"
@@ -28,35 +28,20 @@ comparisons = defaultMain
         , bgroup "medium" $ sizedBuild 500
         , bgroup "large"  $ sizedBuild 1000
         ]
-      , bgroup "insNode"
-        [ bgroup "small"  $ sizedFuncCompare (Old.insNode (101, 101)) (G.insNode 101) 100
-        , bgroup "medium" $ sizedFuncCompare (Old.insNode (501, 501)) (G.insNode 501) 500
-        , bgroup "large"  $ sizedFuncCompare (Old.insNode (1001, 1001)) (G.insNode 1001) 1000
-        ]
-      , bgroup "insEdge"
-        [ bgroup "small"  $ sizedFuncCompare (Old.insEdge (1,1,())) (G.insEdge (G.Edge 1 () 1)) 100
-        , bgroup "medium" $ sizedFuncCompare (Old.insEdge (1,1,())) (G.insEdge (G.Edge 1 () 1)) 500
-        , bgroup "large"  $ sizedFuncCompare (Old.insEdge (1,1,())) (G.insEdge (G.Edge 1 () 1)) 1000
-        ]
+      , bgroup "insNode" $ funcCompare (Old.insNode (1001, 1001))
+                                         (G.insNode 1001)
+      , bgroup "insEdge" $ funcCompare (Old.insEdge (1,1,()))
+                                         (G.insEdge (G.Edge 1 () 1))
       {- TODO: Figure out new gmap
-      , bgroup "gmap" []
-        [ bgroup "small"  $ sizedFuncCompare (Old.nmap (+1)) (G.nmap (+1)) 100
-        , bgroup "medium" $ sizedFuncCompare (Old.nmap (+1)) (G.nmap (+1)) 500
-        , bgroup "large"  $ sizedFuncCompare (Old.nmap (+1)) (G.nmap (+1)) 1000
-        ]
+      , bgroup "gmap" $ funcCompare (Old.gmap (const '1') (+1))
+                                      (G.nemap (const '1') (+1))
       -}
       -- FGL nmap does not adjust the graph, merely change the value stored there
       -- this representational advantage is huge.
-      , bgroup "nmap"
-        [ bgroup "small"  $ sizedFuncCompare (Old.nmap (+1)) (G.nmap (+1)) 100
-        , bgroup "medium" $ sizedFuncCompare (Old.nmap (+1)) (G.nmap (+1)) 500
-        , bgroup "large"  $ sizedFuncCompare (Old.nmap (+1)) (G.nmap (+1)) 1000
-        ]
-      , bgroup "emap"
-        [ bgroup "small"  $ sizedFuncCompare (Old.emap (const '1')) (G.emap (const '1')) 100
-        , bgroup "medium" $ sizedFuncCompare (Old.emap (const '1')) (G.emap (const '1')) 500
-        , bgroup "large"  $ sizedFuncCompare (Old.emap (const '1')) (G.emap (const '1')) 1000
-        ]
+      , bgroup "nmap" $ funcCompare (Old.nmap (+1))
+                                      (G.nmap (+1))
+      , bgroup "emap" $ funcCompare (Old.emap (const '1'))
+                                      (G.emap (const '1'))
       ]
 
     -- Compare the rest of the functions
@@ -64,44 +49,51 @@ comparisons = defaultMain
 
       -- Basic Interface
       [ bgroup "basic"
-        [ bgroup "match"
-          [ bgroup "small"  $ sizedFuncCompare (Old.match 1) (G.match 1) 100
-          , bgroup "medium" $ sizedFuncCompare (Old.match 1) (G.match 1) 500
-          , bgroup "large"  $ sizedFuncCompare (Old.match 1) (G.match 1) 1000
-          ]
-        , bgroup "matchAny"
-          [ bgroup "small"  $ sizedFuncCompare Old.matchAny G.matchAny 100
-          , bgroup "medium" $ sizedFuncCompare Old.matchAny G.matchAny 500
-          , bgroup "large"  $ sizedFuncCompare Old.matchAny G.matchAny 1000
-          ]
-        , bgroup "nodes"
-          [ bgroup "small"  $ sizedFuncCompare Old.labNodes G.nodes 100
-          , bgroup "medium" $ sizedFuncCompare Old.labNodes G.nodes 500
-          , bgroup "large"  $ sizedFuncCompare Old.labNodes G.nodes 1000
-          ]
-        , bgroup "order"
-          [ bgroup "small"  $ sizedFuncCompare Old.order G.order 100
-          , bgroup "medium" $ sizedFuncCompare Old.order G.order 500
-          , bgroup "large"  $ sizedFuncCompare Old.order G.order 1000
-          ]
-        , bgroup "edges"
-          [ bgroup "small"  $ sizedFuncCompare Old.labEdges G.edges 100
-          , bgroup "medium" $ sizedFuncCompare Old.labEdges G.edges 500
-          , bgroup "large"  $ sizedFuncCompare Old.labEdges G.edges 1000
-          ]
-        , bgroup "size"
-          [ bgroup "small"  $ sizedFuncCompare Old.size G.size 100
-          , bgroup "medium" $ sizedFuncCompare Old.size G.size 500
-          , bgroup "large"  $ sizedFuncCompare Old.size G.size 1000
-          ]
+        [ bgroup "match" $ funcCompare (Old.match 1)
+                                         (G.match 1)
+        , bgroup "matchAny" $ funcCompare Old.matchAny
+                                            G.matchAny
+        , bgroup "nodes" $ funcCompare Old.labNodes
+                                         G.nodes
+        , bgroup "order" $ funcCompare Old.order
+                                         G.order
+        , bgroup "edges" $ funcCompare Old.labEdges
+                                         G.edges
+        , bgroup "size" $ funcCompare Old.size
+                                        G.size
 {-
-        , bgroup "(&)"
-          [ bgroup "small"  $ sizedFuncCompare Old.(&) G.(&) 100
-          , bgroup "medium" $ sizedFuncCompare Old.(&) G.(&) 500
-          , bgroup "large"  $ sizedFuncCompare Old.(&) G.(&) 1000
-          ]
+        , bgroup "(&)" $ funcCompare Old.(&)
+                                       G.(&)
 -}
         ]
+
+      -- Queries
+{-
+      , bgroup "queries"
+        [ bgroup "member (node)" $ funcCompare (Old.gelem 25)
+                                                 (G.member 25)
+        , bgroup "member (edge)" $ funcCompare (Old.hasEdge (1,2,()))
+                                                 (G.hasEdge (G.Edge 1 () 2))
+        , bgroup "neighbors" $ funcCompare (Old.func lol)
+                                             (G.func lol)
+        , bgroup "succs" $ funcCompare (Old.func lol)
+                                         (G.func lol)
+        , bgroup "preds" $ funcCompare (Old.func lol)
+                                         (G.func lol)
+        , bgroup "outs" $ funcCompare (Old.func lol)
+                                         (G.func lol)
+        , bgroup "ins" $ funcCompare (Old.func lol)
+                                         (G.func lol)
+        , bgroup "outDeg" $ funcCompare (Old.func lol)
+                                         (G.func lol)
+        , bgroup "inDeg" $ funcCompare (Old.func lol)
+                                         (G.func lol)
+        , bgroup "deg" $ funcCompare (Old.func lol)
+                                         (G.func lol)
+        , bgroup "hasNeighbor" $ funcCompare (Old.func lol)
+                                         (G.func lol)
+        ]
+-}
 {-
  - Comparisons to make
  -
@@ -119,21 +111,11 @@ comparisons = defaultMain
  - efilter
  - filter (node `elem` lsNodes)
  -
- - neighbors
- - succs
- - preds
- - outs
- - ins
- - outDeg
- - inDeg
- - deg
- - hasEdge
- - hasNeighbor
- -
  - equality
  -
  -}
-      , bgroup "others" []
+
+      , bgroup "next" []
       ]
     ]
   ]
@@ -153,6 +135,14 @@ sizedFuncCompare oldF newF n
           newGraph = buildNew (newEdges n) [1..n]
       in [ bench "old" $ nf oldF oldGraph
          , bench "new" $ nf newF newGraph ]
+
+-- | Compare equivalent old and new functions applied to graphs of various sizes
+funcCompare :: (NFData a, NFData b) => (Old.Gr Int () -> a) -> (G.Gr () Int -> b) -> [Benchmark]
+funcCompare oldF newF =
+    [ bgroup "small"  $ sizedFuncCompare oldF newF 100
+    , bgroup "medium" $ sizedFuncCompare oldF newF 500
+    , bgroup "large"  $ sizedFuncCompare oldF newF 1000
+    ]
 
 -- | Compare equivalent new functions applied to graphs of given size
 sizedImplCompare :: (NFData a) => (G.Gr () Int -> a) -> (G.Gr () Int -> a) -> Int -> [Benchmark]
