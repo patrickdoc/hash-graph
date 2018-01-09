@@ -68,57 +68,72 @@ comparisons = defaultMain
         ]
 
       -- Queries
-{-
       , bgroup "queries"
         [ bgroup "member (node)" $ funcCompare (Old.gelem 25)
                                                  (G.member 25)
-        , bgroup "member (edge)" $ funcCompare (Old.hasEdge (1,2,()))
+        , bgroup "member (edge)" $ funcCompare ((flip Old.hasEdge) (1,2))
                                                  (G.hasEdge (G.Edge 1 () 2))
-        , bgroup "neighbors" $ funcCompare (Old.func lol)
-                                             (G.func lol)
-        , bgroup "succs" $ funcCompare (Old.func lol)
-                                         (G.func lol)
-        , bgroup "preds" $ funcCompare (Old.func lol)
-                                         (G.func lol)
-        , bgroup "outs" $ funcCompare (Old.func lol)
-                                         (G.func lol)
-        , bgroup "ins" $ funcCompare (Old.func lol)
-                                         (G.func lol)
-        , bgroup "outDeg" $ funcCompare (Old.func lol)
-                                         (G.func lol)
-        , bgroup "inDeg" $ funcCompare (Old.func lol)
-                                         (G.func lol)
-        , bgroup "deg" $ funcCompare (Old.func lol)
-                                         (G.func lol)
-        , bgroup "hasNeighbor" $ funcCompare (Old.func lol)
-                                         (G.func lol)
+        , bgroup "neighbors"     $ funcCompare ((flip Old.neighbors) testOldNode)
+                                                       (G.neighbors testNewNode)
+        , bgroup "succs"         $ funcCompare ((flip Old.suc) testOldNode)
+                                                       (G.succs testNewNode)
+        , bgroup "preds"         $ funcCompare ((flip Old.pre) testOldNode)
+                                                       (G.preds testNewNode)
+        , bgroup "outs"          $ funcCompare ((flip Old.out) testOldNode)
+                                                       (G.outEdges testNewNode)
+        , bgroup "ins"           $ funcCompare ((flip Old.inn) testOldNode)
+                                                       (G.inEdges testNewNode)
+        , bgroup "outDeg"        $ funcCompare ((flip Old.outdeg) testOldNode)
+                                                       (G.outDegree testNewNode)
+        , bgroup "inDeg"         $ funcCompare ((flip Old.indeg) testOldNode)
+                                                       (G.inDegree testNewNode)
+        , bgroup "deg"           $ funcCompare ((flip Old.deg) testOldNode)
+                                                       (G.degree testNewNode)
+        , bgroup "hasNeighbor"   $ funcCompare ((\x y z -> Old.hasNeighbor z x y) testOldNode (11 :: Old.Node))
+                                                            (G.hasNeighbor testNewNode (11 :: Int))
         ]
--}
-{-
- - Comparisons to make
- -
- - foldr
- - member (node)
- - member (edge)
- - insNodes
- - delNodes
- - delEdge
- - insEdges
- - delEdges
- -
- - gfilter
- - nfilter
- - efilter
- - filter (node `elem` lsNodes)
- -
- - equality
- -
- -}
 
-      , bgroup "next" []
+      -- Insertion and Deletion
+      , bgroup "insertion and deletion"
+        [ bgroup "insNode" $ funcCompare (Old.insNode (1001, 1001))
+                                           (G.insNode 1001)
+        , bgroup "delNode" $ funcCompare (Old.delNode 1001)
+                                           (G.delNode 1001)
+{-
+        , bgroup "insNodes" $ funcCompare
+        , bgroup "delNodes" $ funcCompare
+-}
+        , bgroup "insEdge" $ funcCompare (Old.insEdge (1,1,()))
+                                           (G.insEdge (G.Edge 1 () 1))
+{-
+        , bgroup "delEdge"  $ funcCompare
+        , bgroup "insEdges" $ funcCompare
+        , bgroup "delEdge"  $ funcCompare
+-}
+        ]
+
+      -- Filters
+      , bgroup "filters"
+        [ bgroup "nfilter (label)" $ funcCompare (Old.labnfilter (\(n,val) -> val < 50))
+                                                   (G.nfilter (\n -> n < 50))
+        , bgroup "nfilter (node)"  $ funcCompare (Old.nfilter (\n -> n < 50))
+                                                   (G.nfilter (\n -> n < 50))
+        ]
+
+      -- Folds
+      , bgroup "folds"
+        [ bgroup "foldr" $ funcCompare (Old.ufold (\(_, _, a, _) c -> a + c) 0)
+                                         (G.foldr (+) 0)
+        ]
       ]
     ]
   ]
+
+testOldNode :: Old.Node
+testOldNode = 10
+
+testNewNode :: Int
+testNewNode = 10
 
 -- | Compare building functions at different sizes
 sizedBuild :: Int -> [Benchmark]
@@ -150,6 +165,14 @@ sizedImplCompare f1 f2 n
     = let graph = buildNew (newEdges n) [1..n]
       in [ bench "f1" $ nf f1 graph
          , bench "f2" $ nf f2 graph ]
+
+-- | Compare equivalent new functions applied to graphs of various sizes
+implCompare :: (NFData a) => (G.Gr () Int -> a) -> (G.Gr () Int -> a) -> [Benchmark]
+implCompare f1 f2 =
+    [ bgroup "small"  $ sizedImplCompare f1 f2 100
+    , bgroup "medium" $ sizedImplCompare f1 f2 500
+    , bgroup "large"  $ sizedImplCompare f1 f2 1000
+    ]
 
 ------------------------------
 -- * Library benchmarks
