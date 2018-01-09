@@ -238,11 +238,11 @@ member n (Gr g) = HM.member n g
 
 -- | /O(?)/ Return a list of the neighbors of the given node.
 neighbors :: (Eq b, Hashable b) => b -> Gr a b -> Maybe [b]
-neighbors n g = L.nub <$> ((++) <$> hs <*> ts)
-  where
-    ctx = g !? n
-    hs = HS.foldl' (\ls (Head _ p) -> p : ls) [] . heads <$> ctx
-    ts = HS.foldl' (\ls (Tail _ s) -> s : ls) [] . tails <$> ctx
+neighbors n g = case g !? n of
+    Just (Context' ps _ ss) ->
+        let hds = HS.foldl' (\hs (Head _ p) -> HS.insert p hs) HS.empty ps
+        in Just $ HS.toList $ HS.foldl' (\hs (Tail _ s) -> HS.insert s hs) hds ss
+    Nothing -> Nothing
 
 -- | /O(?)/ Return a list of the predecessors of the given node.
 preds :: (Eq b, Hashable b) => b -> Gr a b -> Maybe [b]
@@ -278,6 +278,7 @@ hasEdge (Edge p l s) g = case g !? p of
     Just (Context' _ _ ss) -> HS.member (Tail l s) ss
     Nothing -> False
 
+-- | TODO: FIX, should be true if undirected edge between nodes
 -- | /O(?)/ Return 'True' if the given nodes are neighbors, 'False' otherwise.
 hasNeighbor :: (Eq b, Hashable b) => b -> b -> Gr a b -> Bool
 hasNeighbor n1 n2 g = case g !? n1 of
@@ -326,6 +327,10 @@ safeInsNode :: (Eq b, Hashable b) => b -> Gr a b -> Gr a b
 safeInsNode n g = case g !? n of
     Just _ -> g
     Nothing -> insNode n g
+
+-- | Insert a node, using the combining function if it already exists
+insNodeWith :: (Eq b, Hashable b) => (Context' a b -> Context' a b -> Context' a b) -> b -> Context' a b -> Gr a b -> Gr a b
+insNodeWith f n c (Gr g) = Gr $ HM.insertWith f n c g
 
 -- | Remove a node and its edges
 delNode :: (Eq a, Eq b, Hashable a, Hashable b) => b -> Gr a b -> Gr a b
