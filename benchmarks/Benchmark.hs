@@ -89,8 +89,8 @@ comparisons = defaultMain
                                                        (G.inDegree testNewNode)
         , bgroup "deg"           $ funcCompare ((flip Old.deg) testOldNode)
                                                        (G.degree testNewNode)
-        , bgroup "hasNeighbor"   $ funcCompare ((\x y z -> Old.hasNeighbor z x y) testOldNode (11 :: Old.Node))
-                                                            (G.hasNeighbor testNewNode (11 :: Int))
+        , bgroup "hasNeighbor"   $ funcCompare ((\x y z -> Old.hasNeighbor z x y) testOldNode 11)
+                                                            (G.hasNeighbor testNewNode 11)
         ]
 
       -- Insertion and Deletion
@@ -114,7 +114,7 @@ comparisons = defaultMain
 
       -- Filters
       , bgroup "filters"
-        [ bgroup "nfilter (label)" $ funcCompare (Old.labnfilter (\(n,val) -> val < 50))
+        [ bgroup "nfilter (label)" $ funcCompare (Old.labnfilter (\(_,val) -> val < 50))
                                                    (G.nfilter (\n -> n < 50))
         , bgroup "nfilter (node)"  $ funcCompare (Old.nfilter (\n -> n < 50))
                                                    (G.nfilter (\n -> n < 50))
@@ -139,6 +139,7 @@ testNewNode = 10
 sizedBuild :: Int -> [Benchmark]
 sizedBuild n
     = [ bench "old" $ nf (buildOld (oldEdges n)) (oldNodes n)
+      , bench "old/list" $ nf buildOldList (oldCtxts n)
       , bench "new" $ nf (buildNew (newEdges n)) [1..n]
       , bench "new/list" $ nf G.fromList (listGraph n)
       ]
@@ -147,9 +148,9 @@ sizedBuild n
 sizedFuncCompare :: (NFData a, NFData b) => (Old.Gr Int () -> a) -> (G.Gr () Int -> b) -> Int -> [Benchmark]
 sizedFuncCompare oldF newF n
     = let oldGraph = buildOld (oldEdges n) (oldNodes n)
-          newGraph = buildNew (newEdges n) [1..n]
-      in [ bench "old" $ nf oldF oldGraph
-         , bench "new" $ nf newF newGraph ]
+          newGraph = G.fromList $ listGraph n
+      in [ bench "old" $ whnf oldF oldGraph
+         , bench "new" $ whnf newF newGraph ]
 
 -- | Compare equivalent old and new functions applied to graphs of various sizes
 funcCompare :: (NFData a, NFData b) => (Old.Gr Int () -> a) -> (G.Gr () Int -> b) -> [Benchmark]
@@ -163,8 +164,8 @@ funcCompare oldF newF =
 sizedImplCompare :: (NFData a) => (G.Gr () Int -> a) -> (G.Gr () Int -> a) -> Int -> [Benchmark]
 sizedImplCompare f1 f2 n
     = let graph = buildNew (newEdges n) [1..n]
-      in [ bench "f1" $ nf f1 graph
-         , bench "f2" $ nf f2 graph ]
+      in [ bench "f1" $ whnf f1 graph
+         , bench "f2" $ whnf f2 graph ]
 
 -- | Compare equivalent new functions applied to graphs of various sizes
 implCompare :: (NFData a) => (G.Gr () Int -> a) -> (G.Gr () Int -> a) -> [Benchmark]
@@ -265,6 +266,10 @@ buildNew = G.mkGraph
 buildOld :: [Old.LEdge ()] -> [Old.LNode Int] -> Old.Gr Int ()
 buildOld es ns = Old.mkGraph ns es
 
+-- | Build a complete graph using fgl list of ctxts
+buildOldList :: [Old.Context Int ()] -> Old.Gr Int ()
+buildOldList ctxts = Old.buildGr ctxts
+
 -- | Generate old edges from number of nodes
 -- Exclude (1, 1, ()) for testing purposes
 oldEdges :: Int -> [(Int, Int, ())]
@@ -274,12 +279,20 @@ oldEdges n = tail $ (\x y -> (x,y,())) <$> [1..n] <*> [1..n]
 oldNodes :: Int -> [(Int, Int)]
 oldNodes n = map (\x -> (x,x)) [1..n]
 
+-- | Generate old Contexts to build a complete graph
+oldCtxts :: Int -> [Old.Context Int ()]
+oldCtxts n = first : [([((),n'') | n'' <- [1..n']], n', n', [((),n'') | n'' <- [1..n']]) | n' <- [1..n]]
+  where
+    first = ([], 1 :: Int, 1 :: Int, [])
+
 -- | Generate new edges from number of nodes
 -- Exclude (1, (), 1) for testing purposes
 newEdges :: Int -> [G.Edge () Int]
 newEdges n = tail $ (\x y -> G.Edge x () y) <$> [1..n] <*> [1..n]
 
 listGraph :: Int -> [(Int, G.Context' () Int)]
-listGraph n = [ (n', G.Context' (HS.fromList [G.Head () n'' | n'' <- [1..n]])
-                                n'
-                                (HS.fromList [G.Tail () n'' | n'' <- [1..n]])) | n' <- [1..n] ]
+listGraph n = first : [ (n', G.Context' (HS.fromList [G.Head () n'' | n'' <- [1..n]])
+                                        n'
+                                        (HS.fromList [G.Tail () n'' | n'' <- [1..n]])) | n' <- [2..n] ]
+  where
+    first = (1, G.Context' (HS.fromList [G.Head () n'' | n'' <- [2..n]]) 1 (HS.fromList [G.Tail () n'' | n'' <- [2..n]]))
