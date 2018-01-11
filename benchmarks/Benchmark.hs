@@ -10,229 +10,166 @@ import Criterion.Main
 
 main :: IO ()
 main = do
-    comparisons     -- Compare against original FGL library
-    library         -- Benchmark library functionality
-    --algos           -- Benchmark graph algorithms
+    fgl 1000        -- Benchmark original FGL library
+    fglNg 1000      -- Compare against original FGL library
+    algos           -- Benchmark graph algorithms
 
 ------------------------------
--- * Comparison benchmarks
+-- * FGL (original library) benchmarks
 
-comparisons :: IO ()
-comparisons = defaultMain
-  [ bgroup "comparisons"
+-- | Benchmark original library
+fgl :: Int -> IO ()
+fgl n = let graph = buildOld (oldEdges n) (oldNodes n) in defaultMain
+  [ bgroup "old"
 
-    -- Compare to original FGL benchmarks
-    [ bgroup "fgl"
-      [ bgroup "build"
-        [ bgroup "small"  $ sizedBuild 100
-        , bgroup "medium" $ sizedBuild 500
-        , bgroup "large"  $ sizedBuild 1000
-        ]
-      , bgroup "insNode" $ funcCompare (Old.insNode (1001, 1001))
-                                         (G.insNode 1001)
-      , bgroup "insEdge" $ funcCompare (Old.insEdge (1,1,()))
-                                         (G.insEdge (G.Edge 1 () 1))
-      {- TODO: Figure out new gmap
-      , bgroup "gmap" $ funcCompare (Old.gmap (const '1') (+1))
-                                      (G.nemap (const '1') (+1))
-      -}
-      -- FGL nmap does not adjust the graph, merely change the value stored there
-      -- this representational advantage is huge.
-      , bgroup "nmap" $ funcCompare (Old.nmap (+1))
-                                      (G.nmap (+1))
-      , bgroup "emap" $ funcCompare (Old.emap (const '1'))
-                                      (G.emap (const '1'))
+    -- Match original library's benchmark
+    [ bgroup "old benchmarks"
+      [ bench "build"   $ whnf (buildOld (oldEdges n)) (oldNodes n)
+      , bench "insNode" $ whnf (Old.insNode (n+1, n+1)) graph
+      , bench "insEdge" $ whnf (Old.insEdge (1,1,())) graph
+      , bench "gmap"    $ whnf (Old.gmap id) graph
+      , bench "nmap"    $ whnf (Old.nmap id) graph
+      , bench "emap"    $ whnf (Old.emap id) graph
       ]
 
-    -- Compare the rest of the functions
-    , bgroup "all"
+    -- Basic Interface
+    , bgroup "class"
+      [ bench "isEmpty"  $ whnf Old.isEmpty graph
+      , bench "match"    $ whnf (Old.match n) graph
+      , bench "mkGraph"  $ whnf (buildOld (oldEdges n)) (oldNodes n)
+      , bench "nodes"    $ whnf Old.labNodes graph
+      , bench "matchAny" $ whnf Old.matchAny graph
+      , bench "order"    $ whnf Old.order graph
+      , bench "edges"    $ whnf Old.labEdges graph
+      , bench "(&)"      $ whnf (([], n+1, n+1, []) Old.&) graph
+      ]
 
-      -- Basic Interface
-      [ bgroup "basic"
-        [ bgroup "match" $ funcCompare (Old.match 1)
-                                         (G.match 1)
-        , bgroup "matchAny" $ funcCompare Old.matchAny
-                                            G.matchAny
-        , bgroup "nodes" $ funcCompare Old.labNodes
-                                         G.nodes
-        , bgroup "order" $ funcCompare Old.order
-                                         G.order
-        , bgroup "edges" $ funcCompare Old.labEdges
-                                         G.edges
-        , bgroup "size" $ funcCompare Old.size
-                                        G.size
-{-
-        , bgroup "(&)" $ funcCompare Old.(&)
-                                       G.(&)
--}
-        ]
+    -- Queries
+    , bgroup "queries"
+      [ bench "member (node)" $ whnf (Old.gelem (n-1)) graph
+      , bench "member (edge)" $ whnf ((flip Old.hasEdge) (n-1,n-2)) graph
+      , bench "neighbors"     $ whnf ((flip Old.neighbors) (n-1)) graph
+      , bench "succs"         $ whnf ((flip Old.suc) (n-1)) graph
+      , bench "preds"         $ whnf ((flip Old.pre) (n-1)) graph
+      , bench "outs"          $ whnf ((flip Old.out) (n-1)) graph
+      , bench "ins"           $ whnf ((flip Old.inn) (n-1)) graph
+      , bench "outDeg"        $ whnf ((flip Old.outdeg) (n-1)) graph
+      , bench "inDeg"         $ whnf ((flip Old.indeg) (n-1)) graph
+      , bench "deg"           $ whnf ((flip Old.deg) (n-1)) graph
+      , bench "hasNeighbor"   $ whnf ((\x y z -> Old.hasNeighbor z x y) (n-1) (n-2)) graph
+      ]
 
-      -- Queries
-      , bgroup "queries"
-        [ bgroup "member (node)" $ funcCompare (Old.gelem 25)
-                                                 (G.member 25)
-        , bgroup "member (edge)" $ funcCompare ((flip Old.hasEdge) (1,2))
-                                                 (G.hasEdge (G.Edge 1 () 2))
-        , bgroup "neighbors"     $ funcCompare ((flip Old.neighbors) testOldNode)
-                                                       (G.neighbors testNewNode)
-        , bgroup "succs"         $ funcCompare ((flip Old.suc) testOldNode)
-                                                       (G.succs testNewNode)
-        , bgroup "preds"         $ funcCompare ((flip Old.pre) testOldNode)
-                                                       (G.preds testNewNode)
-        , bgroup "outs"          $ funcCompare ((flip Old.out) testOldNode)
-                                                       (G.outEdges testNewNode)
-        , bgroup "ins"           $ funcCompare ((flip Old.inn) testOldNode)
-                                                       (G.inEdges testNewNode)
-        , bgroup "outDeg"        $ funcCompare ((flip Old.outdeg) testOldNode)
-                                                       (G.outDegree testNewNode)
-        , bgroup "inDeg"         $ funcCompare ((flip Old.indeg) testOldNode)
-                                                       (G.inDegree testNewNode)
-        , bgroup "deg"           $ funcCompare ((flip Old.deg) testOldNode)
-                                                       (G.degree testNewNode)
-        , bgroup "hasNeighbor"   $ funcCompare ((\x y z -> Old.hasNeighbor z x y) testOldNode 11)
-                                                            (G.hasNeighbor testNewNode 11)
-        ]
+    -- Insertion and Deletion
+    , bgroup "insertion and deletion"
+      [ bench "insNode"  $ whnf (Old.insNode (n+1, n+1)) graph
+      , bench "delNode"  $ whnf (Old.delNode (n-1)) graph
+      , bench "insNodes" $ whnf (Old.insNodes [(x,x) | x <- [n+1..n+10]]) graph
+      , bench "delNodes" $ whnf (Old.delNodes [1..n `div` 2]) graph
+      , bench "insEdge"  $ whnf (Old.insEdge (1,1,())) graph
+      , bench "delEdge"  $ whnf (Old.delEdge (n-1,n-1)) graph
+      , bench "insEdges" $ whnf (Old.insEdges [(1,1,())]) graph
+      , bench "delEdges" $ whnf (Old.delEdges [(x,y) | x <- [n-1], y <- [1..n-1]]) graph
+      ]
 
-      -- Insertion and Deletion
-      , bgroup "insertion and deletion"
-        [ bgroup "insNode" $ funcCompare (Old.insNode (1001, 1001))
-                                           (G.insNode 1001)
-        , bgroup "delNode" $ funcCompare (Old.delNode 1001)
-                                           (G.delNode 1001)
-{-
-        , bgroup "insNodes" $ funcCompare
-        , bgroup "delNodes" $ funcCompare
--}
-        , bgroup "insEdge" $ funcCompare (Old.insEdge (1,1,()))
-                                           (G.insEdge (G.Edge 1 () 1))
-{-
-        , bgroup "delEdge"  $ funcCompare
-        , bgroup "insEdges" $ funcCompare
-        , bgroup "delEdge"  $ funcCompare
--}
-        ]
+    -- Filters
+    , bgroup "filters"
+      [ bench "gfiltermap"      $ whnf (Old.gfiltermap (\x -> Just x)) graph
+      , bench "nfilter (label)" $ whnf (Old.labnfilter (\_ -> True)) graph
+      , bench "nfilter (node)"  $ whnf (Old.nfilter (\_ -> True)) graph
+      , bench "subgraph"        $ whnf (Old.subgraph [1..n `div` 2]) graph
+      ]
 
-      -- Filters
-      , bgroup "filters"
-        [ bgroup "nfilter (label)" $ funcCompare (Old.labnfilter (\(_,val) -> val < 50))
-                                                   (G.nfilter (\n -> n < 50))
-        , bgroup "nfilter (node)"  $ funcCompare (Old.nfilter (\n -> n < 50))
-                                                   (G.nfilter (\n -> n < 50))
-        ]
-
-      -- Folds
-      , bgroup "folds"
-        [ bgroup "foldr" $ funcCompare (Old.ufold (\(_, _, a, _) c -> a + c) 0)
-                                         (G.foldr (+) 0)
-        ]
+    -- Folds and Maps
+    , bgroup "folds and maps"
+      [ bench "foldr"  $ whnf (Old.ufold (\(_, _, a, _) c -> a + c) 0) graph
+      , bench "ctxMap" $ whnf (Old.gmap id) graph
+      , bench "nmap"   $ whnf (Old.nmap id) graph
+      , bench "emap"   $ whnf (Old.emap id) graph
+      , bench "nemap"  $ whnf (Old.nemap id id) graph
       ]
     ]
   ]
 
-testOldNode :: Old.Node
-testOldNode = 10
+------------------------------
+-- * FGL-NG (new library) benchmarks
 
-testNewNode :: Int
-testNewNode = 10
+fglNg :: Int -> IO ()
+fglNg n = let graph = G.fromList (listGraph n) in defaultMain
+  [ bgroup "new"
 
--- | Compare building functions at different sizes
-sizedBuild :: Int -> [Benchmark]
-sizedBuild n
-    = [ bench "old" $ nf (buildOld (oldEdges n)) (oldNodes n)
-      , bench "old/list" $ nf buildOldList (oldCtxts n)
-      , bench "new" $ nf (buildNew (newEdges n)) [1..n]
-      , bench "new/list" $ nf G.fromList (listGraph n)
+    -- Construction functions
+    [ bgroup "construction"
+      [ bench "singleton" $ whnf G.singleton n
+      , bench "mkGraph"   $ whnf (G.mkGraph (newEdges n)) [1..n]
       ]
 
--- | Compare equivalent old and new functions applied to graphs of given size
-sizedFuncCompare :: (NFData a, NFData b) => (Old.Gr Int () -> a) -> (G.Gr () Int -> b) -> Int -> [Benchmark]
-sizedFuncCompare oldF newF n
-    = let oldGraph = buildOld (oldEdges n) (oldNodes n)
-          newGraph = G.fromList $ listGraph n
-      in [ bench "old" $ whnf oldF oldGraph
-         , bench "new" $ whnf newF newGraph ]
-
--- | Compare equivalent old and new functions applied to graphs of various sizes
-funcCompare :: (NFData a, NFData b) => (Old.Gr Int () -> a) -> (G.Gr () Int -> b) -> [Benchmark]
-funcCompare oldF newF =
-    [ bgroup "small"  $ sizedFuncCompare oldF newF 100
-    , bgroup "medium" $ sizedFuncCompare oldF newF 500
-    , bgroup "large"  $ sizedFuncCompare oldF newF 1000
-    ]
-
--- | Compare equivalent new functions applied to graphs of given size
-sizedImplCompare :: (NFData a) => (G.Gr () Int -> a) -> (G.Gr () Int -> a) -> Int -> [Benchmark]
-sizedImplCompare f1 f2 n
-    = let graph = buildNew (newEdges n) [1..n]
-      in [ bench "f1" $ whnf f1 graph
-         , bench "f2" $ whnf f2 graph ]
-
--- | Compare equivalent new functions applied to graphs of various sizes
-implCompare :: (NFData a) => (G.Gr () Int -> a) -> (G.Gr () Int -> a) -> [Benchmark]
-implCompare f1 f2 =
-    [ bgroup "small"  $ sizedImplCompare f1 f2 100
-    , bgroup "medium" $ sizedImplCompare f1 f2 500
-    , bgroup "large"  $ sizedImplCompare f1 f2 1000
-    ]
-
-------------------------------
--- * Library benchmarks
-
-library :: IO ()
-library = defaultMain
-  [ bgroup "library" []
-  {-
-    [ bench "empty"     $ whnf G.empty
-    , bench "singleton" $ whnf G.singleton
-    , bench "mkGraph"   $ whnf G.mkGraph
-
     -- Basic interface
-    , bench "null"      $ whnf G.null
-    , bench "order"     $ whnf G.order
-    , bench "size"      $ whnf G.size
-    , bench "match"     $ whnf G.match
-    , bench "matchAny"  $ whnf G.matchAny
-    , bench "(!)"       $ whnf G.(!)
-    , bench "(!?)"      $ whnf G.(!?)
-    , bench "nodes"     $ whnf G.nodes
-    , bench "edges"     $ whnf G.edges
+    , bgroup "basic"
+      [ bench "null"      $ whnf G.null graph
+      , bench "order"     $ whnf G.order graph
+      , bench "size"      $ whnf G.size graph
+      , bench "match"     $ whnf (G.match  n) graph
+      , bench "matchAny"  $ whnf G.matchAny graph
+      , bench "(!)"       $ whnf (G.! n) graph
+      , bench "(!?)"      $ whnf (G.!? n)  graph
+      , bench "nodes"     $ whnf G.nodes graph
+      , bench "edges"     $ whnf G.edges graph
+      ]
 
     -- Maps
-    , bench "nmap"      $ whnf G.nmap
-    , bench "emap"      $ whnf G.emap
-    , bench "nemapH"    $ whnf G.nemapH
+    , bgroup "maps"
+      [ bench "nmap"      $ whnf (G.nmap id) graph
+      , bench "emap"      $ whnf (G.emap id) graph
+      , bench "nemapH"    $ whnf (G.nemapH id id) graph
+      ]
 
     -- Folds
-    , bench "foldr"     $ whnf G.foldr
+    , bgroup "folds"
+      [ bench "foldr"     $ whnf (G.foldr (+) 0) graph
+      ]
 
     -- Queries
-    , bench "member"    $ whnf G.member
-    , bench "neighbors" $ whnf G.neighbors
-    , bench "preds"     $ whnf G.preds
-    , bench "succs"     $ whnf G.succs
-    , bench "inEdges"   $ whnf G.inEdges
-    , bench "outEdges"  $ whnf G.outEdges
-    , bench "inDegree"  $ whnf G.inDegree
-    , bench "outDegree" $ whnf G.outDegree
-    , bench "degree"    $ whnf G.degree
-    , bench "hasEdge"   $ whnf G.hasEdge
-    , bench "hasNeighbor" $ whnf G.hasNeighbor
+    , bgroup "queries"
+      [ bench "member"      $ whnf (G.member n) graph
+      , bench "neighbors"   $ whnf (G.neighbors n) graph
+      , bench "preds"       $ whnf (G.preds n) graph
+      , bench "succs"       $ whnf (G.succs n) graph
+      , bench "inEdges"     $ whnf (G.inEdges n) graph
+      , bench "outEdges"    $ whnf (G.outEdges n) graph
+      , bench "inDegree"    $ whnf (G.inDegree n) graph
+      , bench "outDegree"   $ whnf (G.outDegree n) graph
+      , bench "degree"      $ whnf (G.degree n) graph
+      , bench "hasEdge"     $ whnf (G.hasEdge (G.Edge (n-1) () (n-2))) graph
+      , bench "hasNeighbor" $ whnf (G.hasNeighbor (n-1) (n-2)) graph
+      ]
 
     -- Filters
-    , bench "nfilter"   $ whnf G.nfilter
-    , bench "efilter"   $ whnf G.efilter
+    , bgroup "filters"
+      [ bench "nfilter" $ whnf (G.nfilter (const True)) graph
+      , bench "efilter" $ whnf (G.efilter (const True)) graph
+      ]
 
     -- Insertion and Deletion
-    , bench "insNode"   $ whnf G.insNode
-    , bench "safeInsNode" $ whnf G.safeInsNode
-    , bench "delNode"   $ whnf G.delNode
-    , bench "insEdge"   $ whnf G.insEdge
-    , bench "delHeads"  $ whnf G.delHeads
-    , bench "delTails"  $ whnf G.delTails
-    , bench "insHead"   $ whnf G.insHead
-    , bench "delHead"   $ whnf G.delHead
-    , bench "insTail"   $ whnf G.insTail
-    , bench "delTail"   $ whnf G.delTail
+    , bgroup "insertion and deletion"
+      [ bench "insNode"     $ whnf (G.insNode (n+1)) graph
+      , bench "safeInsNode" $ whnf (G.safeInsNode (n+1)) graph
+      , bench "delNode"     $ whnf (G.delNode n) graph
+      , bench "insEdge"     $ whnf (G.insEdge (G.Edge 1 () 1)) graph
+      ]
+    ]
+  ]
+
+------------------------------
+-- * Detailed benchmarks
+
+details :: IO ()
+details = defaultMain
+  [ bgroup "details" []
+    {-
+    [ bgroup "insertion"
+      [ bench "new node" $ whnf G.insNode 10
+      , bench "collision" $ whnf G.insNode 10
+      ]
     ]
     -}
   ]
@@ -240,6 +177,8 @@ library = defaultMain
 ------------------------------
 -- * Algorithm benchmarks
 
+algos :: IO ()
+algos = defaultMain []
 
 ------------------------------
 -- Utilities
@@ -283,7 +222,8 @@ oldNodes n = map (\x -> (x,x)) [1..n]
 oldCtxts :: Int -> [Old.Context Int ()]
 oldCtxts n = first : [([((),n'') | n'' <- [1..n']], n', n', [((),n'') | n'' <- [1..n']]) | n' <- [1..n]]
   where
-    first = ([], 1 :: Int, 1 :: Int, [])
+    first :: Old.Context Int ()
+    first = ([], 1, 1, [])
 
 -- | Generate new edges from number of nodes
 -- Exclude (1, (), 1) for testing purposes
