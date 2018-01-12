@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 
-module Data.Graph.Inductive.Strict (
+module Data.HashGraph.Strict (
     -- * Graph Type
       Gr(..)
 

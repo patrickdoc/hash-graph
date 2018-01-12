@@ -1,7 +1,7 @@
 module Main where
 
 import Control.DeepSeq (NFData)
-import qualified Data.Graph.Inductive.Strict as G
+import qualified Data.HashGraph.Strict as G
 import qualified Data.Graph.Inductive.PatriciaTree as Old
 import qualified Data.Graph.Inductive.Graph as Old
 import qualified Data.HashSet as HS
@@ -13,6 +13,7 @@ main = defaultMain
   [ fgl 1000        -- Benchmark original FGL library
   , fglNg 1000      -- Compare against original FGL library
   , details 1000    -- Detailed benchmarks from current implementation
+  , oldDetails 1000 -- Detailed benchmarks from old implementation
   , algos           -- Benchmark graph algorithms
   ]
 
@@ -183,6 +184,25 @@ details n = let graph = G.fromList (listGraph n) in
   , bgroup "lookup"
     [ bench "lookup"       $ whnf (G.!? (n-1)) graph
     , bench "lookup-miss"  $ whnf (G.!? (n+1)) graph
+    ]
+  ]
+
+oldDetails :: Int -> Benchmark
+oldDetails n = let graph = Old.buildGr (oldCtxts n) :: Old.Gr Int () in
+
+  bgroup "oldDetails"
+  [ bgroup "insertion"
+    [ bench "insNode"     $ whnf (Old.insNode (n+1, n+1)) graph
+    , bench "insNode-dup" $ whnf (Old.insNode (n-1, n-1)) graph
+    , bench "insEdge"     $ whnf (Old.insEdge (1,1,())) graph
+    , bench "insEdge-dup" $ whnf (Old.insEdge (1,2,())) graph
+    ]
+
+  , bgroup "deletion"
+    [ bench "delNode"      $ whnf (Old.delNode (n-1)) graph
+    , bench "delNode-miss" $ whnf (Old.delNode (n+1)) graph
+    , bench "delEdge"      $ whnf (Old.delEdge (n-1,n-1)) graph
+    , bench "delEdge-miss" $ whnf (Old.delEdge (1,1)) graph
     ]
   ]
 

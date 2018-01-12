@@ -16,7 +16,7 @@ extra-source-files:  ChangeLog.md
 cabal-version:       >=1.10
 
 library
-  exposed-modules:   Data.Graph.Inductive.Strict
+  exposed-modules:   Data.HashGraph.Strict
   -- other-modules:       
   -- other-extensions:    
   build-depends:     base >=4.10 && <4.11

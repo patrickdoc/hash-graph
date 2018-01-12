@@ -1,6 +1,6 @@
 module Main where
 
-import qualified Data.Graph.Inductive.Strict as G
+import qualified Data.HashGraph.Strict as G
 
 import Control.Exception (evaluate)
 import qualified Data.HashSet as HS
