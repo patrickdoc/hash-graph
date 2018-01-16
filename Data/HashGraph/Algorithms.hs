@@ -27,6 +27,11 @@ bfs g = case matchAny g of
     Just (ctx,_) -> snd $ bfs_ g HS.empty [ctx]
     Nothing -> []
 
+bfsn :: (Eq a, Eq b, Hashable a, Hashable b) => b -> Gr a b -> [b]
+bfsn n g = case match n g of
+    Just (ctx,_) -> snd $ bfs_ g HS.empty [ctx]
+    Nothing -> []
+
 bfs_ :: (Eq b, Hashable b) => Gr a b -> HS.HashSet b -> [Context' a b] -> (HS.HashSet b, [b])
 bfs_ _ set [] = (set, [])
 bfs_ g set cs =
@@ -40,6 +45,11 @@ bfs_ g set cs =
 -- | Depth-first search
 dfs :: (Eq a, Eq b, Hashable a, Hashable b) => Gr a b -> [b]
 dfs g = case matchAny g of
+    Just (ctx,_) -> snd $ dfs_ g HS.empty ctx
+    Nothing -> []
+
+dfsn :: (Eq a, Eq b, Hashable a, Hashable b) => b -> Gr a b -> [b]
+dfsn n g = case match n g of
     Just (ctx,_) -> snd $ dfs_ g HS.empty ctx
     Nothing -> []
 
