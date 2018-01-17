@@ -2,8 +2,10 @@ module Main where
 
 import Control.DeepSeq (NFData)
 import qualified Data.HashGraph.Strict as G
-import qualified Data.Graph.Inductive.PatriciaTree as Old
+import qualified Data.HashGraph.Algorithms as G
 import qualified Data.Graph.Inductive.Graph as Old
+import qualified Data.Graph.Inductive.PatriciaTree as Old
+import qualified Data.Graph.Inductive.Query as Old
 import qualified Data.HashSet as HS
 
 import Criterion.Main
@@ -11,9 +13,9 @@ import Criterion.Main
 main :: IO ()
 main = defaultMain
   [ fgl 1000        -- Benchmark original FGL library
-  , fglNg 1000      -- Compare against original FGL library
-  , details 1000    -- Detailed benchmarks from current implementation
+  , hashGraph 1000      -- Compare against original FGL library
   , oldDetails 1000 -- Detailed benchmarks from old implementation
+  , details 1000    -- Detailed benchmarks from current implementation
   , algos           -- Benchmark graph algorithms
   ]
 
@@ -89,13 +91,19 @@ fgl n = let graph = buildOld (oldEdges n) (oldNodes n) in
       , bench "insEdges" $ whnf (Old.insEdges [(1,1,())]) graph
       , bench "delEdges" $ whnf (Old.delEdges [(x,y) | x <- [n-1], y <- [1..n-1]]) graph
       ]
+
+    -- Algorithms
+    , bgroup "algorithms"
+      [ bench "bfs" $ nf (Old.bfs (n-1)) graph
+      , bench "dfs" $ nf (Old.dfs [(n-1)]) graph
+      ]
     ]
 
 ------------------------------
--- * FGL-NG (new library) benchmarks
+-- * hash-graph (new library) benchmarks
 
-fglNg :: Int -> Benchmark
-fglNg n = let graph = G.fromList (listGraph n) in
+hashGraph :: Int -> Benchmark
+hashGraph n = let graph = G.fromList (listGraph n) in
 
   bgroup "new"
     -- Construction functions
@@ -157,6 +165,12 @@ fglNg n = let graph = G.fromList (listGraph n) in
       , bench "safeInsNode" $ whnf (G.safeInsNode (n+1)) graph
       , bench "delNode"     $ whnf (G.delNode n) graph
       , bench "insEdge"     $ whnf (G.insEdge (G.Edge 1 () 1)) graph
+      ]
+
+    -- Algorithms
+    , bgroup "algorithms"
+      [ bench "bfs" $ nf (G.bfsn (n-1)) graph
+      , bench "dfs" $ nf (G.dfsn (n-1)) graph
       ]
     ]
 

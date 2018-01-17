@@ -1,6 +1,7 @@
 module Main where
 
 import qualified Data.HashGraph.Strict as G
+import qualified Data.HashGraph.Algorithms as GA
 
 import Control.Exception (evaluate)
 import qualified Data.HashSet as HS
@@ -13,7 +14,13 @@ import Test.QuickCheck ((===))
 type TestGraph = G.Gr Int Char
 
 main :: IO ()
-main = hspec $ describe "Strict Graphs" $ do
+main = hspec $ do
+    library
+    algos
+
+
+library :: Spec
+library = describe "Strict Graphs" $ do
 
     -- Construction
     describe "Construction" $ do
@@ -195,21 +202,37 @@ main = hspec $ describe "Strict Graphs" $ do
                 G.hasNeighbor 'a' 'b' gr `shouldBe` True
             it "returns `False` otherwise" $
                 G.hasNeighbor 'z' 'a' gr `shouldBe` False
-{-
+
     -- Filters
     describe "Filters" $ do
-        describe "node filter" $ do
-        describe "edge filter" $ do
+        let edgeList ns = (\x y -> G.Edge x 1 y) <$> ns <*> ns
+            gr = G.mkGraph (tail (edgeList "abcde")) "abcde" :: TestGraph
+        describe "node filter" $
+            prop "filters" $
+                \ns -> sort (G.nodes (G.nfilter (/= 'a') (G.mkGraph [] ns :: TestGraph))) === filter (/= 'a') (sort (nub ns))
+        describe "edge filter" $
+            it "filters edges" $
+                G.edges (G.efilter (\(G.Edge x _ _) -> x == 'a') gr) `shouldBe` [ G.Edge 'a' 1 'b'
+                                                                                , G.Edge 'a' 1 'c'
+                                                                                , G.Edge 'a' 1 'd'
+                                                                                , G.Edge 'a' 1 'e'
+                                                                                ]
+{-
     -- Insertion and Deletion
     describe "Insertion and Deletion" $ do
         describe "insNode" $ do
         describe "safeInsNode" $ do
         describe "delNode" $ do
         describe "insEdge" $ do
-        describe "delHeads" $ do
-        describe "delTails" $ do
-        describe "insHead" $ do
-        describe "delHead" $ do
-        describe "insTail" $ do
-        describe "delTail" $ do
 -}
+
+algos :: Spec
+algos = describe "algorithms" $ do
+    let es = [ G.Edge 'a' 1 'b', G.Edge 'a' 1 'c', G.Edge 'b' 1 'd', G.Edge 'b' 1 'e', G.Edge 'c' 1 'f', G.Edge 'c' 1 'g' ]
+        treeGraph = G.mkGraph es "abcdefg" :: TestGraph
+    describe "bfs" $
+        it "creates the correct list" $
+            GA.bfs treeGraph `shouldBe` ['a','b','c','f','g','d','e']
+    describe "dfs" $
+        it "creates the correct list" $
+            GA.dfs treeGraph `shouldBe` ['a','b','d','e','c','f','g']
