@@ -339,17 +339,17 @@ delNode :: (Eq a, Eq b, Hashable a, Hashable b) => b -> Gr a b -> Gr a b
 delNode n g@(Gr graph) = case g !? n of
     Just ctx -> Gr $ delHeads ctx $ delTails ctx $ HM.delete n graph
     Nothing -> g
-{-# INLINEABLE delNode #-}
+{-# INLINABLE delNode #-}
 
 -- TODO: Currently unsafe? check how adjust works
 insEdge :: (Eq a, Eq b, Hashable a, Hashable b) => Edge a b -> Gr a b -> Gr a b
 insEdge e (Gr g) = Gr $ insTail e (insHead e g)
-{-# INLINEABLE insEdge #-}
+{-# INLINABLE insEdge #-}
 
 -- | Remove an edge
 delEdge :: (Eq a, Eq b, Hashable a, Hashable b) => Edge a b -> Gr a b -> Gr a b
 delEdge e (Gr g) = Gr $ delTail e (delHead e g)
-{-# INLINEABLE delEdge #-}
+{-# INLINABLE delEdge #-}
 
 -- Insertion and Deletion Internals
 
@@ -358,42 +358,42 @@ insHead :: (Eq a, Eq b, Hashable a, Hashable b) => Edge a b -> GraphRep a b -> G
 insHead (Edge p l s) = HM.adjust go s
   where
     go (Context' ps _l _ss) = Context' (HS.insert (Head l p) ps) _l _ss
-{-# INLINEABLE insHead #-}
+{-# INLINABLE insHead #-}
 
 -- | Remove a head from the graph
 delHead :: (Eq a, Eq b, Hashable a, Hashable b) => Edge a b -> GraphRep a b -> GraphRep a b
 delHead (Edge p l s) = HM.adjust go s
   where
     go (Context' ps _l _ss) = Context' (HS.delete (Head l p) ps) _l _ss
-{-# INLINEABLE delHead #-}
+{-# INLINABLE delHead #-}
 
 -- | Remove the head ends of tails attached to the node
 delHeads :: (Eq a, Eq b, Hashable a, Hashable b) => Context' a b -> GraphRep a b -> GraphRep a b
 delHeads (Context' _ p ss) g = HS.foldl' go g ss
   where
     go hm (Tail l s) = delHead (Edge p l s) hm
-{-# INLINEABLE delHeads #-}
+{-# INLINABLE delHeads #-}
 
 -- | Insert a tail into the graph
 insTail :: (Eq a, Eq b, Hashable a, Hashable b) => Edge a b -> GraphRep a b -> GraphRep a b
 insTail (Edge p l s) = HM.adjust go p
   where
     go (Context' _ps _l ss) = Context' _ps _l (HS.insert (Tail l s) ss)
-{-# INLINEABLE insTail #-}
+{-# INLINABLE insTail #-}
 
 -- | Remove a tail from the graph
 delTail :: (Eq a, Eq b, Hashable a, Hashable b) => Edge a b -> GraphRep a b -> GraphRep a b
 delTail (Edge p l s) = HM.adjust go p
   where
     go (Context' _ps _l ss) = Context' _ps _l (HS.delete (Tail l s) ss)
-{-# INLINEABLE delTail #-}
+{-# INLINABLE delTail #-}
 
 -- | Remove the head ends of tails attached to the node
 delTails :: (Eq a, Eq b, Hashable a, Hashable b) => Context' a b -> GraphRep a b -> GraphRep a b
 delTails (Context' ps s _) g = HS.foldl' go g ps
   where
     go hm (Head l p) = delTail (Edge p l s) hm
-{-# INLINEABLE delTails #-}
+{-# INLINABLE delTails #-}
 
 -----------------------------------------
 -- Equality?
