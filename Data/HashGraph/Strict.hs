@@ -1,5 +1,14 @@
 {-# LANGUAGE DeriveGeneric #-}
 
+-------------------------------------
+-- |
+-- Module       : Data.HashGraph.Strict
+-- Copyright    : 2017 Patrick Dougherty
+-- License      : BSD2
+-- Maintainer   : Patrick Dougherty <patrick.doc@ameritech.net>
+--
+-- A hashing-based graph implementation.
+
 module Data.HashGraph.Strict (
     -- * Graph Type
       Gr(..)
@@ -11,14 +20,14 @@ module Data.HashGraph.Strict (
 
     -- * Basic interface
     , null
+    , nodes
     , order
+    , edges
     , size
-    , match
-    , matchAny
     , (!)
     , (!?)
-    , nodes
-    , edges
+    , match
+    , matchAny
 
     -- * Maps
     , nmap
@@ -62,6 +71,7 @@ module Data.HashGraph.Strict (
     , Edge(..)
     , Head(..)
     , Tail(..)
+    , insTail
     ) where
 
 import Control.DeepSeq
@@ -127,13 +137,13 @@ mkGraph es ns = L.foldl' (flip insEdge) nodeGraph es
 -- | /O(1)/ Return 'True' if this graph is empty, 'False' otherwise
 null :: Gr a b -> Bool
 null (Gr g) = HM.null g
+{-# INLINABLE null #-}
 
 -- | /O(n)/ Return the number of nodes in the graph
 order :: Gr a b -> Int
 order (Gr g) = HM.size g
 
--- TODO: Determine time complexity
--- | /O(?)/ Return the number of edges in the graph
+-- | /O(n+e)/ Return the number of edges in the graph
 size :: Gr a b -> Int
 size = L.foldl' (\c (_, Context' ps _ _) -> c + HS.size ps) 0 . toList
 

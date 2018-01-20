@@ -6,11 +6,12 @@ module Data.HashGraph.Algorithms (
   , dfs
   , dfsn
   , prim
+  , primAt
     ) where
 
 import Data.List (foldl')
 import Data.HashGraph.Strict
-import Data.HashGraph.Algorithms.MST (prim)
+import Data.HashGraph.Algorithms.MST (prim, primAt)
 import Data.Hashable
 import qualified Data.HashSet as HS
 
