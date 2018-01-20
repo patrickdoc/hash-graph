@@ -5,10 +5,12 @@ module Data.HashGraph.Algorithms (
   , bfsn
   , dfs
   , dfsn
+  , prim
     ) where
 
 import Data.List (foldl')
 import Data.HashGraph.Strict
+import Data.HashGraph.Algorithms.MST (prim)
 import Data.Hashable
 import qualified Data.HashSet as HS
 
@@ -18,11 +20,13 @@ import qualified Data.HashSet as HS
  - Dominators
  - Graph Voronoi Diagram
  - Maximum Independent Node Sets
- - Minimum Spanning Tree
  - Max Flow
  - Shortest Path
  - Transitive and or Reflective Closure
  -}
+
+-----------------------------------
+-- Breadth-first Search
 
 -- | Breadth-first search
 bfs :: (Eq a, Eq b, Hashable a, Hashable b) => Gr a b -> [b]
@@ -49,6 +53,9 @@ bfs_ g initialSet initialContext = go initialSet initialContext
         then (hs,ps,ctxs)
         else (HS.insert n hs, n:ps, map (\(Tail _ s) -> g!s) (HS.toList ss) ++ ctxs)
 {-# INLINABLE bfs_ #-}
+
+-----------------------------------
+-- Depth-first Search
 
 -- | Depth-first search
 dfs :: (Eq a, Eq b, Hashable a, Hashable b) => Gr a b -> [b]

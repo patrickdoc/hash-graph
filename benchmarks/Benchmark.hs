@@ -1,6 +1,5 @@
 module Main where
 
-import Control.DeepSeq (NFData)
 import qualified Data.HashGraph.Strict as G
 import qualified Data.HashGraph.Algorithms as G
 import qualified Data.Graph.Inductive.Graph as Old
@@ -8,6 +7,7 @@ import qualified Data.Graph.Inductive.PatriciaTree as Old
 import qualified Data.Graph.Inductive.Query as Old
 import qualified Data.HashSet as HS
 
+import Control.DeepSeq (NFData(..))
 import Criterion.Main
 
 main :: IO ()
@@ -35,11 +35,11 @@ fgl n = let graph = buildOld (oldEdges n) (oldNodes n) in
     -- Basic Interface
     , bgroup "basic"
       [ bench "null"     $ whnf Old.isEmpty graph
-      , bench "match"    $ whnf (Old.match n) graph
-      , bench "matchAny" $ whnf Old.matchAny graph
-      , bench "nodes"    $ whnf Old.labNodes graph
+      , bench "match"    $ nf (Old.match n) graph
+      , bench "matchAny" $ nf Old.matchAny graph
+      , bench "nodes"    $ nf Old.labNodes graph
       , bench "order"    $ whnf Old.order graph
-      , bench "edges"    $ whnf Old.labEdges graph
+      , bench "edges"    $ nf Old.labEdges graph
       , bench "size"     $ whnf Old.size graph
       , bench "(&)"      $ whnf (([], n+1, n+1, []) Old.&) graph
       ]
@@ -84,11 +84,11 @@ fgl n = let graph = buildOld (oldEdges n) (oldNodes n) in
     , bgroup "insertion and deletion"
       [ bench "insNode"  $ whnf (Old.insNode (n+1, n+1)) graph
       , bench "delNode"  $ whnf (Old.delNode (n-1)) graph
-      , bench "insEdge"  $ whnf (Old.insEdge (1,1,())) graph
+      , bench "insEdge"  $ whnf (Old.insEdge (1,1,1)) graph
       , bench "delEdge"  $ whnf (Old.delEdge (n-1,n-1)) graph
       , bench "insNodes" $ whnf (Old.insNodes [(x,x) | x <- [n+1..n+10]]) graph
       , bench "delNodes" $ whnf (Old.delNodes [1..n `div` 2]) graph
-      , bench "insEdges" $ whnf (Old.insEdges [(1,1,())]) graph
+      , bench "insEdges" $ whnf (Old.insEdges [(1,1,1)]) graph
       , bench "delEdges" $ whnf (Old.delEdges [(x,y) | x <- [n-1], y <- [1..n-1]]) graph
       ]
 
@@ -96,8 +96,13 @@ fgl n = let graph = buildOld (oldEdges n) (oldNodes n) in
     , bgroup "algorithms"
       [ bench "bfs" $ nf (Old.bfs (n-1)) graph
       , bench "dfs" $ nf (Old.dfs [(n-1)]) graph
+      , bench "mst" $ nf (Old.msTreeAt n) graph
       ]
     ]
+
+-- To `nf` the `msTree` results we need this instance
+instance (NFData a) => NFData (Old.LPath a) where
+    rnf (Old.LP lp) = rnf lp
 
 ------------------------------
 -- * hash-graph (new library) benchmarks
@@ -108,7 +113,7 @@ hashGraph n = let graph = G.fromList (listGraph n) in
   bgroup "new"
     -- Construction functions
     [ bgroup "construction"
-      [ bench "singleton" $ whnf (G.singleton :: Int -> G.Gr () Int)  n
+      [ bench "singleton" $ whnf (G.singleton :: Int -> G.Gr Int Int)  n
       , bench "mkGraph"   $ whnf (G.mkGraph (newEdges n)) [1..n]
       , bench "fromList"  $ whnf G.fromList (listGraph n)
       ]
@@ -116,11 +121,11 @@ hashGraph n = let graph = G.fromList (listGraph n) in
     -- Basic interface
     , bgroup "basic"
       [ bench "null"     $ whnf G.null graph
-      , bench "match"    $ whnf (G.match  n) graph
-      , bench "matchAny" $ whnf G.matchAny graph
-      , bench "nodes"    $ whnf G.nodes graph
+      , bench "match"    $ nf (G.match n) graph
+      , bench "matchAny" $ nf G.matchAny graph
+      , bench "nodes"    $ nf G.nodes graph
       , bench "order"    $ whnf G.order graph
-      , bench "edges"    $ whnf G.edges graph
+      , bench "edges"    $ nf G.edges graph
       , bench "size"     $ whnf G.size graph
       , bench "(!)"      $ whnf (G.! n) graph
       , bench "(!?)"     $ whnf (G.!? n)  graph
@@ -149,7 +154,7 @@ hashGraph n = let graph = G.fromList (listGraph n) in
       , bench "inDegree"    $ whnf (G.inDegree n) graph
       , bench "outDegree"   $ whnf (G.outDegree n) graph
       , bench "degree"      $ whnf (G.degree n) graph
-      , bench "hasEdge"     $ whnf (G.hasEdge (G.Edge (n-1) () (n-2))) graph
+      , bench "hasEdge"     $ whnf (G.hasEdge (G.Edge (n-1) ((n-1)*(n-2)) (n-2))) graph
       , bench "hasNeighbor" $ whnf (G.hasNeighbor (n-1) (n-2)) graph
       ]
 
@@ -164,13 +169,14 @@ hashGraph n = let graph = G.fromList (listGraph n) in
       [ bench "insNode"     $ whnf (G.insNode (n+1)) graph
       , bench "safeInsNode" $ whnf (G.safeInsNode (n+1)) graph
       , bench "delNode"     $ whnf (G.delNode n) graph
-      , bench "insEdge"     $ whnf (G.insEdge (G.Edge 1 () 1)) graph
+      , bench "insEdge"     $ whnf (G.insEdge (G.Edge 1 1 1)) graph
       ]
 
     -- Algorithms
     , bgroup "algorithms"
       [ bench "bfs" $ nf (G.bfsn (n-1)) graph
       , bench "dfs" $ nf (G.dfsn (n-1)) graph
+      , bench "mst" $ nf G.prim graph
       ]
     ]
 
@@ -184,15 +190,15 @@ details n = let graph = G.fromList (listGraph n) in
   [ bgroup "insertion"
     [ bench "insNode"      $ whnf (G.insNode (n+1)) graph
     , bench "insNode-dup"  $ whnf (G.insNode (n-1)) graph
-    , bench "insEdge"      $ whnf (G.insEdge (G.Edge 1 () 1)) graph
-    , bench "insEdge-dup"  $ whnf (G.insEdge (G.Edge n () n)) graph
+    , bench "insEdge"      $ whnf (G.insEdge (G.Edge 1 1 1)) graph
+    , bench "insEdge-dup"  $ whnf (G.insEdge (G.Edge n (n*n) n)) graph
     ]
 
   , bgroup "deletion"
     [ bench "delNode"      $ whnf (G.delNode (n-1)) graph
     , bench "delNode-miss" $ whnf (G.delNode (n+1)) graph
-    , bench "delEdge"      $ whnf (G.delEdge (G.Edge n () n)) graph
-    , bench "delEdge-miss" $ whnf (G.delEdge (G.Edge 1 () 1)) graph
+    , bench "delEdge"      $ whnf (G.delEdge (G.Edge n (n*n) n)) graph
+    , bench "delEdge-miss" $ whnf (G.delEdge (G.Edge 1 1 1)) graph
     ]
 
   , bgroup "lookup"
@@ -202,14 +208,14 @@ details n = let graph = G.fromList (listGraph n) in
   ]
 
 oldDetails :: Int -> Benchmark
-oldDetails n = let graph = Old.buildGr (oldCtxts n) :: Old.Gr Int () in
+oldDetails n = let graph = Old.buildGr (oldCtxts n) :: Old.Gr Int Int in
 
   bgroup "oldDetails"
   [ bgroup "insertion"
     [ bench "insNode"     $ whnf (Old.insNode (n+1, n+1)) graph
     , bench "insNode-dup" $ whnf (Old.insNode (n-1, n-1)) graph
-    , bench "insEdge"     $ whnf (Old.insEdge (1,1,())) graph
-    , bench "insEdge-dup" $ whnf (Old.insEdge (1,2,())) graph
+    , bench "insEdge"     $ whnf (Old.insEdge (1,1,1)) graph
+    , bench "insEdge-dup" $ whnf (Old.insEdge (1,2,2)) graph
     ]
 
   , bgroup "deletion"
@@ -230,37 +236,37 @@ algos = bgroup "algos" []
 -- Utilities
 
 -- | Build a complete graph using fgl
-buildOld :: [Old.LEdge ()] -> [Old.LNode Int] -> Old.Gr Int ()
+buildOld :: [Old.LEdge Int] -> [Old.LNode Int] -> Old.Gr Int Int
 buildOld es ns = Old.mkGraph ns es
 
 -- | Build a complete graph using fgl list of ctxts
-buildOldList :: [Old.Context Int ()] -> Old.Gr Int ()
+buildOldList :: [Old.Context Int Int] -> Old.Gr Int Int
 buildOldList ctxts = Old.buildGr ctxts
 
 -- | Generate old edges from number of nodes
--- Exclude (1, 1, ()) for testing purposes
-oldEdges :: Int -> [(Int, Int, ())]
-oldEdges n = tail $ (\x y -> (x,y,())) <$> [1..n] <*> [1..n]
+-- Exclude (1, 1, 1) for testing purposes
+oldEdges :: Int -> [(Int, Int, Int)]
+oldEdges n = tail $ (\x y -> (x,y,x*y)) <$> [1..n] <*> [1..n]
 
 -- | Generate old nodes from number of nodes
 oldNodes :: Int -> [(Int, Int)]
 oldNodes n = map (\x -> (x,x)) [1..n]
 
 -- | Generate old Contexts to build a complete graph
-oldCtxts :: Int -> [Old.Context Int ()]
-oldCtxts n = first : [([((),n'') | n'' <- [1..n']], n', n', [((),n'') | n'' <- [1..n']]) | n' <- [1..n]]
+oldCtxts :: Int -> [Old.Context Int Int]
+oldCtxts n = first : [([(n'*n'',n'') | n'' <- [1..n']], n', n', [(n'*n'',n'') | n'' <- [1..n']]) | n' <- [1..n]]
   where
-    first :: Old.Context Int ()
+    first :: Old.Context Int Int
     first = ([], 1, 1, [])
 
 -- | Generate new edges from number of nodes
--- Exclude (1, (), 1) for testing purposes
-newEdges :: Int -> [G.Edge () Int]
-newEdges n = tail $ (\x y -> G.Edge x () y) <$> [1..n] <*> [1..n]
+-- Exclude (1, 1, 1) for testing purposes
+newEdges :: Int -> [G.Edge Int Int]
+newEdges n = tail $ (\x y -> G.Edge x (x*y) y) <$> [1..n] <*> [1..n]
 
-listGraph :: Int -> [(Int, G.Context' () Int)]
-listGraph n = first : [ (n', G.Context' (HS.fromList [G.Head () n'' | n'' <- [1..n]])
+listGraph :: Int -> [(Int, G.Context' Int Int)]
+listGraph n = first : [ (n', G.Context' (HS.fromList [G.Head (n'*n'') n'' | n'' <- [1..n]])
                                         n'
-                                        (HS.fromList [G.Tail () n'' | n'' <- [1..n]])) | n' <- [2..n] ]
+                                        (HS.fromList [G.Tail (n'*n'') n'' | n'' <- [1..n]])) | n' <- [2..n] ]
   where
-    first = (1, G.Context' (HS.fromList [G.Head () n'' | n'' <- [2..n]]) 1 (HS.fromList [G.Tail () n'' | n'' <- [2..n]]))
+    first = (1, G.Context' (HS.fromList [G.Head n'' n'' | n'' <- [2..n]]) 1 (HS.fromList [G.Tail n'' n'' | n'' <- [2..n]]))
