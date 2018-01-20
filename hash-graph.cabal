@@ -5,7 +5,7 @@ name:                hash-graph
 version:             0.1.0.0
 synopsis:            A hashmap-based graph implementation
 -- description:         
-license:             BSD3
+license:             BSD2
 license-file:        LICENSE
 author:              Patrick Dougherty
 maintainer:          patrick.doc@ameritech.net
