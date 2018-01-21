@@ -66,6 +66,9 @@ module Data.HashGraph.Strict (
     , fromList
     , fromListWith
 
+    -- * Pretty printing
+    , pretty
+
     -- The rest
     , Context'(..)
     , Edge(..)
@@ -429,3 +432,11 @@ fromListWith f = Gr . HM.fromListWith f
 
 ------------------------------------
 -- Pretty Printing
+
+-- | Pretty-print the graph
+pretty :: (Show a, Show b) => Gr a b -> String
+pretty (Gr g)
+    = HM.foldl' (\str (Context' ps n ss) -> show (HS.toList ps) ++ " -> "
+                                         ++ show n
+                                         ++ " -> " ++ show (HS.toList ss)
+                                         ++ "\n" ++ str) [] g
