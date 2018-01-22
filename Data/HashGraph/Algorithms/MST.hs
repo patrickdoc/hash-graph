@@ -20,12 +20,12 @@ import Data.List (foldl')
 
 prim :: (Eq b, Hashable a, Hashable b, Ord a) => Gr a b -> Gr a b
 prim g = case matchAny g of
-    Just (ctx, _) -> primHeap g ctx
+    Just (ctx, _) -> primBoth g ctx
     Nothing -> g
 
 primAt :: (Eq b, Hashable a, Hashable b, Ord a) => b -> Gr a b -> Gr a b
 primAt start g = case g !? start of
-    Just ctx -> primHeap g ctx
+    Just ctx -> primBoth g ctx
     Nothing -> g
 
 --------------------------------------
@@ -102,12 +102,52 @@ addTailsHeap :: (Eq b, Hashable b, Ord a)
          -> H.Heap (Edge a b)
          -> HS.HashSet (Tail a b)
          -> H.Heap (Edge a b)
-addTailsHeap p visited = HS.foldl' checkedInsert 
+addTailsHeap p visited = HS.foldl' checkedInsert
   where
     checkedInsert heap (Tail l s)
         = if HS.member s visited
             then heap
             else H.insert (Edge p l s) heap
+
+----------------------------------
+-- Use both!
+
+primBoth :: (Eq a, Eq b, Hashable a, Hashable b, Ord a) => Gr a b -> Context' a b -> Gr a b
+primBoth g (Context' _ node sucs) = fixTails $ go HS.empty HM.empty H.empty (Context' HS.empty node sucs)
+  where
+    go !visited !optimal !edgeHeap (Context' ps n ss) =
+        let newVisited = HS.insert n visited
+        in case pickNextEdge newVisited (addTailsBoth n newVisited optimal edgeHeap ss) of
+            Just (newEdgeHeap, newOpt, newCtx) -> (n, Context' ps n HS.empty) : go newVisited newOpt newEdgeHeap newCtx
+            Nothing -> [(n, Context' ps n HS.empty)]
+    pickNextEdge visited (opt, edgeHeap) | HM.null opt = Nothing
+                                         | otherwise = case H.uncons edgeHeap of
+        Just (Edge p l s, newHeap) ->
+            if HS.member s visited
+                then pickNextEdge visited (opt, newHeap)
+                else Just (newHeap, HM.delete s opt, Context' (HS.singleton (Head l p)) s (tails (g!s)))
+        Nothing -> Nothing
+
+addTailsBoth :: (Eq b, Hashable b, Ord a)
+         => b
+         -> HS.HashSet b
+         -> HM.HashMap b (Head a b)
+         -> H.Heap (Edge a b)
+         -> HS.HashSet (Tail a b)
+         -> (HM.HashMap b (Head a b), H.Heap (Edge a b))
+addTailsBoth p visited optimal edgeHeap = HS.foldl' checkedInsert (optimal, edgeHeap)
+  where
+    checkedInsert (opt, heap) (Tail l s)
+        | HS.member s visited = (opt,heap)
+        | otherwise = case HM.lookup s opt of
+            Just (Head l' _) ->
+                if l' <= l
+                    then (opt, heap)
+                    else (HM.insert s (Head l p) opt, H.insert (Edge p l s) heap)
+            Nothing -> (HM.insert s (Head l p) opt, H.insert (Edge p l s) heap)
+
+--------------------------------
+-- Kruskal
 
 -- | Kruskal's algorithm for the minimum spanning tree
 kruskal :: Gr a b -> Gr a b
