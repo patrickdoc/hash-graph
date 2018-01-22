@@ -98,6 +98,9 @@ data Edge a b = Edge !b !a !b  deriving (Eq, Generic, Show)
 data Head a b = Head !a !b deriving (Eq, Generic, Show)
 data Tail a b = Tail !a !b deriving (Eq, Generic, Show)
 
+instance (Eq a, Eq b, Ord a) => Ord (Edge a b) where
+    compare (Edge _ l1 _) (Edge _ l2 _) = compare l1 l2
+
 instance (Hashable a, Hashable b) => Hashable (Edge a b)
 instance (Hashable a, Hashable b) => Hashable (Head a b)
 instance (Hashable a, Hashable b) => Hashable (Tail a b)
