@@ -1,4 +1,4 @@
-module Arbitrary where
+module Data.HashGraph.Arbitrary where
 
 import Data.Hashable
 import Data.HashGraph.Strict
@@ -11,6 +11,8 @@ newtype CompleteGraph a b = CG (Gr a b)
 
 -- | A graph shaped like a binary tree.
 newtype BTreeGraph a b = BTG (Gr a b)
+
+-- | A circular graph, where there are 
 
 instance (Arbitrary a, Arbitrary b, Eq a, Eq b, Hashable a, Hashable b) => Arbitrary (CompleteGraph a b) where
     arbitrary = do
