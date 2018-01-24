@@ -26,6 +26,9 @@ module Data.HashGraph.Strict (
     , size
     , (!)
     , (!?)
+
+    -- * Inductive
+    , (&)
     , match
     , matchAny
 
@@ -153,28 +156,6 @@ order (Gr g) = HM.size g
 size :: Gr a b -> Int
 size = L.foldl' (\c (_, Context' ps _ _) -> c + HS.size ps) 0 . toList
 
--- | Extract a node from the graph
-match :: (Eq a, Eq b, Hashable a, Hashable b) => b -> Gr a b -> Maybe (Context' a b, Gr a b)
-match n g = case g !? n of
-    Just ctx -> let newGraph = delNode n g
-                in Just (ctx, newGraph)
-    Nothing -> Nothing
-{-# INLINE match #-}
-
--- | Extract any node from the graph
-matchAny :: (Eq a, Eq b, Hashable a, Hashable b) => Gr a b -> Maybe (Context' a b, Gr a b)
-matchAny g = case nodes g of
-    (n:_) -> match n g
-    [] -> Nothing
-{-# INLINE matchAny #-}
-
--- TODO: Figure out API for dynamic graphs
-{-
--- | Merge the 'Context' into the graph
-(&) :: Context a b -> Gr a b -> Gr a b
-(&) (Context' p l s) (Gr g) = insNode
--}
-
 infixl 9 !, !?
 -- | /O(log n)/ Return the 'Context' of a node in the graph.
 -- Call 'error' if the node is not in the graph.
@@ -198,6 +179,33 @@ edges :: Gr a b -> [Edge a b]
 edges (Gr hm) = HM.foldl' (\lst ctx -> getTails ctx ++ lst) [] hm
   where
     getTails (Context' _ p ss) = HS.foldl' (\lst (Tail l s) -> Edge p l s : lst) [] ss
+
+--------------------------------------
+-- Inductive
+
+-- | Extract a node from the graph
+match :: (Eq a, Eq b, Hashable a, Hashable b) => b -> Gr a b -> Maybe (Context' a b, Gr a b)
+match n g = case g !? n of
+    Just ctx -> let newGraph = delNode n g
+                in Just (ctx, newGraph)
+    Nothing -> Nothing
+{-# INLINE match #-}
+
+-- | Extract any node from the graph
+matchAny :: (Eq a, Eq b, Hashable a, Hashable b) => Gr a b -> Maybe (Context' a b, Gr a b)
+matchAny g = case nodes g of
+    (n:_) -> match n g
+    [] -> Nothing
+{-# INLINE matchAny #-}
+
+-- TODO: Figure out how this should be implemented
+-- | Merge the 'Context' into the graph
+-- Currently deletes old node if present
+(&) :: (Eq a, Eq b, Hashable a, Hashable b) => Context' a b -> Gr a b -> Gr a b
+(&) ctx@(Context' _ l _) g
+    = if member l g
+        then fromList ((l, ctx) : toList (delNode l g))
+        else fromList ((l, ctx) : toList g)
 
 --------------------------------------
 -- Maps
