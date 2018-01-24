@@ -11,8 +11,7 @@ any of the measurements, please let me know.
 
 I would take these measurements with a grain of salt. Many of the measurements
 differ wildly between `whnf` and `nf`, and I have to look a little closer at the
-sources to determine the best way to compare them. Help here would be
-appreciated :)
+sources to determine the best way to compare them.
 
 All functions run on a graph with 1000 nodes and 1 million edges.
 
