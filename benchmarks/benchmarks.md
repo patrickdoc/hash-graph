@@ -1,18 +1,29 @@
 # Benchmarks
 
 To keep up my promise of performance, here are some measurements taken on my
-computer.
+computer. For the biggest wins, look to the sections on [queries](#queries) and
+[algorithms](#algorithms).
+
+N.B. FGL's implementation is based on Data.IntMap.Lazy, whereas this library is
+based on Data.HashGraph.Strict. I've tried to make this comparison fair with
+appropriate applications of `nf`. However, if you feel that I've compromised
+any of the measurements, please let me know.
+
+I would take these measurements with a grain of salt. Many of the measurements
+differ wildly between `whnf` and `nf`, and I have to look a little closer at the
+sources to determine the best way to compare them. Help here would be
+appreciated :)
 
 ### Construction
 
-| Function      | New       | Old       |
+| Function      | New       | FGL       |
 |---------------|-----------|-----------|
 | mkGraph       | 3.479  s  | 705.5 ms  |
 | fromList      | 81.92 μs  | 316.4 ms  |
 
 ### Basic Interface
 
-| Function      | New       | Old       |
+| Function      | New       | FGL       |
 |---------------|-----------|-----------|
 | null          | 7.866 ns  | 7.731 ns  |
 | match         | 53.05 ms  | 53.88 ms  |
@@ -21,28 +32,28 @@ computer.
 | order         | 6.891 μs  | 8.307 μs  |
 | edges         | 297.8 ms  | 203.3 ms  |
 | size          | 14.49 ms  | 228.2 ms  |
-| (&)           |           | 97.20 ns  |
+| (&)           | 169.0 μs  | 97.20 ns  |
 | (!)           | 29.44 ns  |           |
 | (!?)          | 27.56 ns  |           |
 
 ### Maps
 
-| Function      | New       | Old       |
+| Function      | New       | FGL       |
 |---------------|-----------|-----------|
-| nmap          | 1.059  s  | 20.88 μs  |
-| emap          | 1.080  s  | 21.09 μs  |
-| nemap         | 1.055  s  | 22.02 μs  |
-| ctxMap        |           | 20.58 μs  |
+| nmap          | 1.059  s  | 52.02 ms  |
+| emap          | 1.080  s  | 513.9 ms  |
+| nemap         | 1.055  s  | 517.3 ms  |
+| ctxMap        |           | 748.5 ms  |
 
 ### Folds
 
-| Function      | New       | Old       |
+| Function      | New       | FGL       |
 |---------------|-----------|-----------|
 | foldr         | 47.47 μs  | 287.0 ms  |
 
 ### Queries
 
-| Function      | New       | Old       |
+| Function      | New       | FGL       |
 |---------------|-----------|-----------|
 | member        | 28.25 ns  | 1.113 ms  |
 | neighbors     | 311.7 μs  | 1.227 ms  |
@@ -58,22 +69,22 @@ computer.
 
 ### Filters
 
-| Function      | New       | Old       |
+| Function      | New       | FGL       |
 |---------------|-----------|-----------|
 | gfiltermap    |           | 1.635  s  |
-| nfilter (lab) | 275.4 ms  | 23.18 μs  |
-| nfilter (node)| 275.4 ms  | 23.25 μs  |
+| nfilter (lab) | 275.4 ms  | 51.93 ms  |
+| nfilter (node)| 275.4 ms  | 52.28 ms  |
+| efilter       | 265.9 ms  | 1.870  s  |
 | subgraph      |           | 243.5 ms  |
-| efilter       | 265.9 ms  |           |
 
 ### Insertion and Deletion
 
-| Function      | New       | Old       |
+| Function      | New       | FGL       |
 |---------------|-----------|-----------|
 | insNode       | 84.83 ns  | 67.92 ns  |
 | delNode       | 2.858 ms  | 1.105 ms  |
 | insEdge       | 501.8 ns  | 160.9 ns  |
-| delEdge       |           | 4.095 ms  |
+| delEdge       | 523.6 ns  | 4.095 ms  |
 | insNodes      |           | 746.0 ns  |
 | delNodes      |           | 237.3 ms  |
 | insEdges      |           | 159.6 ns  |
@@ -81,7 +92,7 @@ computer.
 
 ### Algorithms
 
-| Function      | New       | Old       |
+| Function      | New       | FGL       |
 |---------------|-----------|-----------|
 | bfs           | 147.4 ms  | 576.5 ms  |
 | dfs           | 123.8 ms  | 286.1 ms  |
@@ -89,14 +100,14 @@ computer.
 
 ## Detailed
 
-| Function      | New       | Old       |
+| Function      | New       | FGL       |
 |---------------|-----------|-----------|
 | insNode       | 84.91 ns  | 70.28 ns  |
 | insNode-dup   | 80.08 ns  | 91.51 ns  |
-| insEdge       | 507.2 ns  | 156.8 ns  |
-| insEdge-dup   | 275.8 ns  | 172.2 ns  |
 | delNode       | 3.106 ms  | 146.5 μs  |
 | delNode-miss  | 19.57 ns  | 36.07 ns  |
+| insEdge       | 507.2 ns  | 156.8 ns  |
+| insEdge-dup   | 275.8 ns  | 172.2 ns  |
 | delEdge       | 512.6 ns  | 1.038 ms  |
 | delEdge-miss  | 235.8 ns  | 305.8 ns  |
 | lookup        | 27.23 ns  |           |

@@ -1,12 +1,16 @@
 module Main where
 
+-- New library imports
 import qualified Data.HashGraph.Strict as G
 import qualified Data.HashGraph.Algorithms as G
+
+-- FGL imports
+import qualified Data.Graph.Inductive.Basic as Old
 import qualified Data.Graph.Inductive.Graph as Old
 import qualified Data.Graph.Inductive.PatriciaTree as Old
 import qualified Data.Graph.Inductive.Query as Old
-import qualified Data.HashSet as HS
 
+import qualified Data.HashSet as HS
 import Control.DeepSeq (NFData(..))
 import Criterion.Main
 
@@ -46,10 +50,10 @@ fgl n = let graph = buildOld (oldEdges n) (oldNodes n) in
 
     -- Maps
     , bgroup "maps"
-      [ bench "nmap"   $ whnf (Old.nmap id) graph
-      , bench "emap"   $ whnf (Old.emap id) graph
-      , bench "nemap"  $ whnf (Old.nemap id id) graph
-      , bench "ctxMap" $ whnf (Old.gmap id) graph
+      [ bench "nmap"   $ nf (Old.nmap id) graph
+      , bench "emap"   $ nf (Old.emap id) graph
+      , bench "nemap"  $ nf (Old.nemap id id) graph
+      , bench "ctxMap" $ nf (Old.gmap id) graph
       ]
 
     -- Folds
@@ -60,11 +64,11 @@ fgl n = let graph = buildOld (oldEdges n) (oldNodes n) in
     -- Queries
     , bgroup "queries"
       [ bench "member"        $ whnf (Old.gelem (n-1)) graph
-      , bench "neighbors"     $ whnf ((flip Old.neighbors) (n-1)) graph
-      , bench "preds"         $ whnf ((flip Old.pre) (n-1)) graph
-      , bench "succs"         $ whnf ((flip Old.suc) (n-1)) graph
-      , bench "inEdges"       $ whnf ((flip Old.inn) (n-1)) graph
-      , bench "outEdges"      $ whnf ((flip Old.out) (n-1)) graph
+      , bench "neighbors"     $ nf ((flip Old.neighbors) (n-1)) graph
+      , bench "preds"         $ nf ((flip Old.pre) (n-1)) graph
+      , bench "succs"         $ nf ((flip Old.suc) (n-1)) graph
+      , bench "inEdges"       $ nf ((flip Old.inn) (n-1)) graph
+      , bench "outEdges"      $ nf ((flip Old.out) (n-1)) graph
       , bench "inDegree"      $ whnf ((flip Old.indeg) (n-1)) graph
       , bench "outDegree"     $ whnf ((flip Old.outdeg) (n-1)) graph
       , bench "degree"        $ whnf ((flip Old.deg) (n-1)) graph
@@ -74,9 +78,10 @@ fgl n = let graph = buildOld (oldEdges n) (oldNodes n) in
 
     -- Filters
     , bgroup "filters"
-      [ bench "gfiltermap"      $ whnf (Old.gfiltermap (\x -> Just x)) graph
-      , bench "nfilter (label)" $ whnf (Old.labnfilter (\_ -> True)) graph
-      , bench "nfilter (node)"  $ whnf (Old.nfilter (\_ -> True)) graph
+      [ bench "gfiltermap"      $ whnf (Old.gfiltermap Just) graph
+      , bench "nfilter (label)" $ nf (Old.labnfilter (const True)) graph
+      , bench "nfilter (node)"  $ nf (Old.nfilter (const True)) graph
+      , bench "efilter"         $ whnf (Old.efilter (const True)) graph
       , bench "subgraph"        $ whnf (Old.subgraph [1..n `div` 2]) graph
       ]
 
@@ -121,14 +126,15 @@ hashGraph n = let graph = G.fromList (listGraph n) in
     -- Basic interface
     , bgroup "basic"
       [ bench "null"     $ whnf G.null graph
-      , bench "match"    $ nf (G.match n) graph
-      , bench "matchAny" $ nf G.matchAny graph
       , bench "nodes"    $ nf G.nodes graph
       , bench "order"    $ whnf G.order graph
       , bench "edges"    $ nf G.edges graph
       , bench "size"     $ whnf G.size graph
       , bench "(!)"      $ whnf (G.! n) graph
       , bench "(!?)"     $ whnf (G.!? n)  graph
+      , bench "match"    $ nf (G.match n) graph
+      , bench "matchAny" $ nf G.matchAny graph
+      , bench "(&)"      $ whnf ((G.Context' (HS.empty) (n+1) (HS.empty)) G.&) graph
       ]
 
     -- Maps
@@ -146,11 +152,11 @@ hashGraph n = let graph = G.fromList (listGraph n) in
     -- Queries
     , bgroup "queries"
       [ bench "member"      $ whnf (G.member n) graph
-      , bench "neighbors"   $ whnf (G.neighbors n) graph
-      , bench "preds"       $ whnf (G.preds n) graph
-      , bench "succs"       $ whnf (G.succs n) graph
-      , bench "inEdges"     $ whnf (G.inEdges n) graph
-      , bench "outEdges"    $ whnf (G.outEdges n) graph
+      , bench "neighbors"   $ nf (G.neighbors n) graph
+      , bench "preds"       $ nf (G.preds n) graph
+      , bench "succs"       $ nf (G.succs n) graph
+      , bench "inEdges"     $ nf (G.inEdges n) graph
+      , bench "outEdges"    $ nf (G.outEdges n) graph
       , bench "inDegree"    $ whnf (G.inDegree n) graph
       , bench "outDegree"   $ whnf (G.outDegree n) graph
       , bench "degree"      $ whnf (G.degree n) graph
@@ -170,6 +176,7 @@ hashGraph n = let graph = G.fromList (listGraph n) in
       , bench "safeInsNode" $ whnf (G.safeInsNode (n+1)) graph
       , bench "delNode"     $ whnf (G.delNode n) graph
       , bench "insEdge"     $ whnf (G.insEdge (G.Edge 1 1 1)) graph
+      , bench "delEdge"     $ whnf (G.delEdge (G.Edge n (n*n) n)) graph
       ]
 
     -- Algorithms
@@ -186,7 +193,7 @@ hashGraph n = let graph = G.fromList (listGraph n) in
 details :: Int -> Benchmark
 details n = let graph = G.fromList (listGraph n) in
 
-  bgroup "details"
+  bgroup "new/details"
   [ bgroup "insertion"
     [ bench "insNode"      $ whnf (G.insNode (n+1)) graph
     , bench "insNode-dup"  $ whnf (G.insNode (n-1)) graph
@@ -210,7 +217,7 @@ details n = let graph = G.fromList (listGraph n) in
 oldDetails :: Int -> Benchmark
 oldDetails n = let graph = Old.buildGr (oldCtxts n) :: Old.Gr Int Int in
 
-  bgroup "oldDetails"
+  bgroup "old/details"
   [ bgroup "insertion"
     [ bench "insNode"     $ whnf (Old.insNode (n+1, n+1)) graph
     , bench "insNode-dup" $ whnf (Old.insNode (n-1, n-1)) graph
