@@ -261,7 +261,7 @@ oldNodes n = map (\x -> (x,x)) [1..n]
 
 -- | Generate old Contexts to build a complete graph
 oldCtxts :: Int -> [Old.Context Int Int]
-oldCtxts n = first : [([(n'*n'',n'') | n'' <- [1..n']], n', n', [(n'*n'',n'') | n'' <- [1..n']]) | n' <- [1..n]]
+oldCtxts n = first : [([(n'*n'',n'') | n'' <- [1..n']], n', n', [(n'*n'',n'') | n'' <- [1..n']]) | n' <- [2..n]]
   where
     first :: Old.Context Int Int
     first = ([], 1, 1, [])

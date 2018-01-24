@@ -99,7 +99,12 @@ All functions run on a graph with 1000 nodes and 1 million edges.
 | dfs           | 123.8 ms  | 286.1 ms  |
 | mst           | 112.3 ms  | 617.8 ms  |
 
+
 ## Detailed
+
+These are run on graphs with 1000 nodes, but only edges leading to nodes with
+values less than the original node. i.e. (1,1), (2,1), (2,2), (3,1), (3,2),
+(3,3) ....
 
 | Function      | New       | FGL       |
 |---------------|-----------|-----------|
