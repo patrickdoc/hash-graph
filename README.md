@@ -16,3 +16,24 @@ the Functional Graph Library (FGL):
 [Original Site](http://web.engr.oregonstate.edu/~erwig/fgl/haskell/).
 However, I made changes to bring the api closer to other container libraries
 and to be more consistent in input and output types.
+
+Examples
+--------
+
+I've included some example code in the folder `examples`. These demonstrate some
+of the practicals of building and using graphs. With `cabal >= 1.24` you should
+be able to:
+
+    cabal new-build examples
+
+and then run them from with `dist-newstyle`. I find it easiest to just copy the
+location from the final line of building that says something like:
+
+    Linking /PATH/TO/EXE ...
+
+Source Navigation
+-----------------
+
+The main module is `Data.HashGraph.Strict`. This defines most of the
+functionality at the moment. I'm working on adding common graph algorithms to
+`Data.HashGraph.Algorithms`.
