@@ -1,17 +1,26 @@
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
--- This module sets up a simple graph of courses and prereqs.
--- Each node is a course, and each edge is labeled with the
--- difficulty of progressing along that edge.
+-- This module is why I wrote the library in the first place.
+--
+-- Each node is a topic in computer science.
+--
+-- Each edge represents the difficulty of moving from one topic to another.
+-- The goal of this module is to find the minimum spanning tree representing
+-- the simplest way to learn every topic.
 
 module Main where
 
-import Data.HashGraph.Strict
-import Data.HashGraph.Algorithms
+import Data.HashGraph.Strict (Gr, Edge(..), mkGraph, pretty)
+import Data.HashGraph.Algorithms (primAt)
 
 main :: IO ()
 main = do
+    -- Run prim's algorithm on a given starting node,
+    -- then create a representation of the graph for printing
     putStr $ pretty $ primAt pythonAndTerm courseGraph
 
+-- | Type aliases to make the graph type clear
+-- node :: Course
+-- edge :: Difficulty
 type Course = String
 type Difficulty = Int
 
@@ -20,6 +29,7 @@ type Difficulty = Int
 courseGraph :: Gr Difficulty Course
 courseGraph = mkGraph preReqs courses
 
+---------------------------------------
 -- Nodes
 
 -- | A list of all the courses
@@ -86,11 +96,12 @@ linAlg              = "Linear Algebra"
 gpuGraphics         = "GPU Graphics"
 
 
+---------------------------------------
 -- Edges
 
 -- | A list of the edges of the graph
 --
--- These /Edge/'s connect two /Course/'s with a /Difficulty/ label
+-- These /Edge/s connect two /Course/s with a /Difficulty/ label
 preReqs :: [Edge Difficulty Course]
 preReqs =
     [ Edge introC             1   bashAndIntermTerm

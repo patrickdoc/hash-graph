@@ -198,6 +198,7 @@ matchAny g = case nodes g of
     [] -> Nothing
 {-# INLINE matchAny #-}
 
+infixr 9 &
 -- TODO: Figure out how this should be implemented
 -- | Merge the 'Context' into the graph
 -- Currently deletes old node if present

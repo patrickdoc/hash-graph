@@ -16,9 +16,9 @@ flag prof
   description:       Enable profiling output
   default:           False
 
-executable courses
+executable basic
   default-language:  Haskell2010
-  main-is:           Courses.hs
+  main-is:           Basic.hs
   ghc-options:       -Wall -O2
   build-depends:     base >= 4.10 && <4.11
                    , hash-graph
@@ -27,6 +27,47 @@ executable courses
   -- -s print profiling data to stderr
   -- -hy graph heap usage by type
   -- -i0.1 set resolution of heap sampling
+  if flag(prof)
+    ghc-options:     "-with-rtsopts=-p -s -hy -i0.1"
+
+  if flag(dump)
+    ghc-options:     -ddump-simpl -dsuppress-all -ddump-to-file
+
+executable courses
+  default-language:  Haskell2010
+  main-is:           Courses.hs
+  ghc-options:       -Wall -O2
+  build-depends:     base >= 4.10 && <4.11
+                   , hash-graph
+
+  if flag(prof)
+    ghc-options:     "-with-rtsopts=-p -s -hy -i0.1"
+
+  if flag(dump)
+    ghc-options:     -ddump-simpl -dsuppress-all -ddump-to-file
+
+executable fgl
+  default-language:  Haskell2010
+  main-is:           Fgl.hs
+  ghc-options:       -Wall -O2
+  build-depends:     base >= 4.10 && <4.11
+                   , hash-graph
+                   , unordered-containers
+
+  if flag(prof)
+    ghc-options:     "-with-rtsopts=-p -s -hy -i0.1"
+
+  if flag(dump)
+    ghc-options:     -ddump-simpl -dsuppress-all -ddump-to-file
+
+executable sonic
+  default-language:  Haskell2010
+  main-is:           Sonic.hs
+  ghc-options:       -Wall -O2
+  build-depends:     base >= 4.10 && <4.11
+                   , hash-graph
+                   , unordered-containers
+
   if flag(prof)
     ghc-options:     "-with-rtsopts=-p -s -hy -i0.1"
 
