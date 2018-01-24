@@ -1,6 +1,5 @@
-cabal.project*
+cabal.project.local
 dist*
-.*
+**/dump*
 
-fgl-ng-profiling.*
 out.bench
