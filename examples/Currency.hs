@@ -6,7 +6,7 @@
 module Main where
 
 import Data.HashGraph.Strict
-import Data.HashGraph.Algorithms (pathTree, primAt)
+import Data.HashGraph.Algorithms (pathTree)
 
 import Data.Maybe (fromJust)
 import Money (ExchangeRate, SomeExchangeRate, exchangeRate, toSomeExchangeRate)
@@ -15,9 +15,6 @@ main :: IO ()
 main = do
     let graph = mkGraph es ns
     print $ pathTree "EUR" graph
-    putStr "\nAlternatively\n"
-    print $ minPath "EUR" "GBP" graph
-
 
 -- Nodes == Currencies
 ns :: [String]
@@ -46,12 +43,3 @@ eToJ =
 jToG :: SomeExchangeRate
 jToG =
     toSomeExchangeRate $ fromJust $ (exchangeRate 0.006 :: Maybe (ExchangeRate "JPY" "GBP"))
-
-minPath :: String -> String -> Gr SomeExchangeRate String -> [Edge SomeExchangeRate String]
-minPath src dst g = go dst []
-  where
-    go n pth = case inEdges n minG of
-        Just [] -> pth
-        Just [e@(Edge p _ _)] -> go p (e : pth)
-        _ -> error "primAt is broken"
-    minG = primAt src g
