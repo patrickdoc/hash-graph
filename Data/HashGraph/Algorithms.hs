@@ -7,7 +7,10 @@ module Data.HashGraph.Algorithms (
   , dfsn
   , prim
   , primAt
-    ) where
+
+  -- * Paths?
+  , pathTree
+  ) where
 
 import Data.List (foldl')
 import Data.HashGraph.Strict
@@ -80,3 +83,17 @@ dfs_ g = go
                                        (HS.insert n set,[]) ss
              in (newSet, n : lst)
 {-# INLINABLE dfs_ #-}
+
+-----------------------------------
+-- pathTree from Graphalyze
+
+-- | Return all paths starting at the given node
+-- WARNING: Infinite loop if the graph contains a loop (an edge from a node to itself)
+pathTree :: (Eq a, Eq b, Hashable a, Hashable b) => b -> Gr a b -> [[Edge a b]]
+pathTree n g = case match n g of
+    Just (_, g') -> case outEdges n g of
+        Just es -> if Prelude.null es
+            then [[]]
+            else concatMap (\e@(Edge _ _ s) -> map (e:) (pathTree s g')) es
+        Nothing -> [[]]
+    Nothing -> []
