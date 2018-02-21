@@ -1,3 +1,6 @@
+[![Build
+Status](https://travis-ci.org/patrickdoc/hash-graph.svg?branch=master)](https://travis-ci.org/patrickdoc/hash-graph)
+
 A Hashing-based Graph Library
 =============================
 
