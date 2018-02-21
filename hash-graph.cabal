@@ -6,6 +6,7 @@ license-file:        LICENSE
 author:              Patrick Dougherty
 maintainer:          Patrick Dougherty <patrick.doc@ameritech.net>
 copyright:           Copyright (C) 2017-2018 Patrick Dougherty
+cabal-version:       >=1.10
 build-type:          Simple
 extra-source-files:  ChangeLog.md
 tested-with:         GHC == 7.10.3, GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.1, GHC == 8.5.*
