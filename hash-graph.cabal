@@ -24,7 +24,7 @@ library
                      Data.HashGraph.Algorithms.MST
   -- other-modules:       
   -- other-extensions:    
-  build-depends:     base >=4.8 && <4.11
+  build-depends:     base >=4.8 && <4.12
                    , deepseq
                    , hashable
                    , heaps
@@ -37,7 +37,7 @@ test-suite tests
   type:              exitcode-stdio-1.0
   hs-source-dirs:    tests
   main-is:           Test.hs
-  build-depends:     base >=4.8 && <4.11
+  build-depends:     base >=4.8 && <4.12
                    , hash-graph
                    , hspec
                    , QuickCheck
@@ -49,7 +49,7 @@ benchmark benchmarks
   type:              exitcode-stdio-1.0
   hs-source-dirs:    benchmarks
   main-is:           Benchmark.hs
-  build-depends:     base >=4.8 && <4.11
+  build-depends:     base >=4.8 && <4.12
                    , criterion
                    , deepseq
                    , fgl
