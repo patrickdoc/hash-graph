@@ -18,6 +18,10 @@ description:
   The <https://github.com/patrickdoc/hash-graph examples> directory contains
   many small demonstrations of how to use the library.
 
+source-repository head
+  type:     git
+  location: https://github.com/patrickdoc/hash-graph.git
+
 library
   exposed-modules:   Data.HashGraph.Strict
                      Data.HashGraph.Algorithms
