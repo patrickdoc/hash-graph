@@ -23,15 +23,18 @@ source-repository head
   location: https://github.com/patrickdoc/hash-graph.git
 
 library
-  exposed-modules:   Data.HashGraph.Strict
-                     Data.HashGraph.Algorithms
-                     Data.HashGraph.Algorithms.MST
+  -- exposed-modules:   Data.HashGraph.Strict
+  --                    Data.HashGraph.Algorithms
+  --                    Data.HashGraph.Algorithms.MST
+  exposed-modules:   Data.AbstractGraph.Prim
+                     Data.AbstractGraph.Total
   -- other-modules:       
   -- other-extensions:    
   build-depends:     base >=4.8 && <4.12
                    , deepseq
                    , hashable
                    , heaps
+                   , profunctors
                    , unordered-containers
   default-language:  Haskell2010
   ghc-options:       -Wall
