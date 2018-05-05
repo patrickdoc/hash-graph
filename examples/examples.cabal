@@ -20,7 +20,7 @@ executable basic
   default-language:  Haskell2010
   main-is:           Basic.hs
   ghc-options:       -Wall -O2
-  build-depends:     base >= 4.10 && <4.11
+  build-depends:     base >= 4.10 && <4.12
                    , hash-graph
 
   -- -p enables time profile report
@@ -37,7 +37,7 @@ executable courses
   default-language:  Haskell2010
   main-is:           Courses.hs
   ghc-options:       -Wall -O2
-  build-depends:     base >= 4.10 && <4.11
+  build-depends:     base >= 4.10 && <4.12
                    , hash-graph
 
   if flag(prof)
@@ -50,7 +50,7 @@ executable currency
   default-language:  Haskell2010
   main-is:           Currency.hs
   ghc-options:       -Wall -O2
-  build-depends:     base >= 4.10 && <4.11
+  build-depends:     base >= 4.10 && <4.12
                    , hash-graph
                    , safe-money
 
@@ -64,7 +64,7 @@ executable fgl
   default-language:  Haskell2010
   main-is:           Fgl.hs
   ghc-options:       -Wall -O2
-  build-depends:     base >= 4.10 && <4.11
+  build-depends:     base >= 4.10 && <4.12
                    , hash-graph
                    , unordered-containers
 
@@ -78,7 +78,7 @@ executable sonic
   default-language:  Haskell2010
   main-is:           Sonic.hs
   ghc-options:       -Wall -O2
-  build-depends:     base >= 4.10 && <4.11
+  build-depends:     base >= 4.10 && <4.12
                    , hash-graph
                    , unordered-containers
 

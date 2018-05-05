@@ -9,7 +9,7 @@ copyright:           Copyright (C) 2017-2018 Patrick Dougherty
 cabal-version:       >=1.10
 build-type:          Simple
 extra-source-files:  ChangeLog.md
-tested-with:         GHC == 7.10.3, GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.1, GHC == 8.5.*
+tested-with:         GHC == 7.10.3, GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.2, GHC == 8.5.*
 synopsis:            A hashmap-based graph implementation
 description:         
   This package provides an inductive graph representation based upon
