@@ -185,10 +185,8 @@ edges (Gr hm) = HM.foldl' (\lst ctx -> getTails ctx ++ lst) [] hm
 
 -- | Extract a node from the graph
 match :: (Eq a, Eq b, Hashable a, Hashable b) => b -> Gr a b -> Maybe (Context' a b, Gr a b)
-match n g = case g !? n of
-    Just ctx -> let newGraph = delNode n g
-                in Just (ctx, newGraph)
-    Nothing -> Nothing
+match n g = g !? n >>= \ctx -> let newGraph = delNode n g
+                               in Just (ctx, newGraph)
 {-# INLINE match #-}
 
 -- | Extract any node from the graph
@@ -265,11 +263,9 @@ member n (Gr g) = HM.member n g
 
 -- | /O(?)/ Return a list of the neighbors of the given node.
 neighbors :: (Eq b, Hashable b) => b -> Gr a b -> Maybe [b]
-neighbors n g = case g !? n of
-    Just (Context' ps _ ss) ->
+neighbors n g = g !? n >>= \(Context' ps _ ss) ->
         let hds = HS.foldl' (\hs (Head _ p) -> HS.insert p hs) HS.empty ps
         in Just $ HS.toList $ HS.foldl' (\hs (Tail _ s) -> HS.insert s hs) hds ss
-    Nothing -> Nothing
 
 -- | /O(?)/ Return a list of the predecessors of the given node.
 preds :: (Eq b, Hashable b) => b -> Gr a b -> Maybe [b]
@@ -351,9 +347,10 @@ insNode n (Gr g) = Gr $ HM.insert n (Context' HS.empty n HS.empty) g
 
 -- | Insert a node only if it does not already exist in the graph
 safeInsNode :: (Eq b, Hashable b) => b -> Gr a b -> Gr a b
-safeInsNode n g = case g !? n of
-    Just _ -> g
-    Nothing -> insNode n g
+safeInsNode n g
+  = if n `member` g
+      then g
+      else insNode n g
 
 -- | Insert a node, using the combining function if it already exists
 insNodeWith :: (Eq b, Hashable b) => (Context' a b -> Context' a b -> Context' a b) -> b -> Context' a b -> Gr a b -> Gr a b
