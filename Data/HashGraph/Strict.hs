@@ -201,10 +201,7 @@ infixr 9 &
 -- | Merge the 'Context' into the graph
 -- Currently deletes old node if present
 (&) :: (Eq a, Eq b, Hashable a, Hashable b) => Context' a b -> Gr a b -> Gr a b
-(&) ctx@(Context' _ l _) g
-    = if member l g
-        then fromList ((l, ctx) : toList (delNode l g))
-        else fromList ((l, ctx) : toList g)
+(&) ctx@(Context' _ l _) (Gr g) = Gr $ HM.insert l ctx g
 
 --------------------------------------
 -- Maps
