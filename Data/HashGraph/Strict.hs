@@ -173,6 +173,11 @@ infixl 9 !, !?
 nodes :: Gr a b -> [b]
 nodes (Gr g) = HM.keys g
 
+-- | /O(n)/ Return a list of the contexts in the graph.
+-- The list is produced lazily
+contexts :: Gr a b -> [Context' a b]
+contexts (Gr g) = HM.elems g
+
 -- TODO: Determine time complexity
 -- | /O(?)/ Return a list of the edges in the graph
 edges :: Gr a b -> [Edge a b]
@@ -185,15 +190,12 @@ edges (Gr hm) = HM.foldl' (\lst ctx -> getTails ctx ++ lst) [] hm
 
 -- | Extract a node from the graph
 match :: (Eq a, Eq b, Hashable a, Hashable b) => b -> Gr a b -> Maybe (Context' a b, Gr a b)
-match n g = g !? n >>= \ctx -> let newGraph = delNode n g
-                               in Just (ctx, newGraph)
+match n g = g !? n >>= \ctx -> Just (ctx, delCtx ctx g)
 {-# INLINE match #-}
 
 -- | Extract any node from the graph
 matchAny :: (Eq a, Eq b, Hashable a, Hashable b) => Gr a b -> Maybe (Context' a b, Gr a b)
-matchAny g = case nodes g of
-    (n:_) -> match n g
-    [] -> Nothing
+matchAny g = L.uncons (contexts g) >>= \(ctx,_) -> Just (ctx, delCtx ctx g)
 {-# INLINE matchAny #-}
 
 infixr 9 &
@@ -355,10 +357,14 @@ insNodeWith f n c (Gr g) = Gr $ HM.insertWith f n c g
 
 -- | Remove a node and its edges
 delNode :: (Eq a, Eq b, Hashable a, Hashable b) => b -> Gr a b -> Gr a b
-delNode n g@(Gr graph) = case g !? n of
-    Just ctx -> Gr $ delHeads ctx $ delTails ctx $ HM.delete n graph
-    Nothing -> g
+delNode n g = case g !? n of
+                Just ctx -> delCtx ctx g
+                Nothing -> g
 {-# INLINABLE delNode #-}
+
+-- | Remove a context
+delCtx :: (Eq a, Eq b, Hashable a, Hashable b) => Context' a b -> Gr a b -> Gr a b
+delCtx ctx@(Context' _ n _) (Gr graph) = Gr $ delHeads ctx $ delTails ctx $ HM.delete n graph
 
 -- TODO: Currently unsafe? check how adjust works
 insEdge :: (Eq a, Eq b, Hashable a, Hashable b) => Edge a b -> Gr a b -> Gr a b
