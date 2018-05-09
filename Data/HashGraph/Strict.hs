@@ -115,7 +115,6 @@ instance (NFData a, NFData b) => NFData (Tail a b)
 -- | The Context of a node within the Graph type
 data Context' a b = Context'
     { heads :: !(HS.HashSet (Head a b)) -- ^ Predecessors of the node
-    , self  :: !b                       -- ^ The node label
     , tails :: !(HS.HashSet (Tail a b)) -- ^ Successors of the node
     } deriving (Eq, Generic, Show)
 
@@ -130,14 +129,14 @@ empty = Gr HM.empty
 
 -- | /O(1)/ Construct a graph with a single node
 singleton :: (Eq b, Hashable b) => b -> Gr a b
-singleton b = Gr $ HM.singleton b (Context' HS.empty b HS.empty)
+singleton b = Gr $ HM.singleton b (Context' HS.empty HS.empty)
 
 -- TODO: cleanup and determine time complexity
 -- | Construct a graph from the given edges and nodes
 mkGraph :: (Eq a, Eq b, Hashable a, Hashable b) => [Edge a b] -> [b] -> Gr a b
 mkGraph es ns = L.foldl' (flip insEdge) nodeGraph es
   where
-    nodeGraph = Gr $ HM.fromList $ map (\x -> (x, Context' HS.empty x HS.empty)) ns
+    nodeGraph = Gr $ HM.fromList $ map (\x -> (x, Context' HS.empty HS.empty)) ns
 {-# INLINE mkGraph #-}
 
 -------------------------------
@@ -154,7 +153,7 @@ order (Gr g) = HM.size g
 
 -- | /O(n+e)/ Return the number of edges in the graph
 size :: Gr a b -> Int
-size = L.foldl' (\c (_, Context' ps _ _) -> c + HS.size ps) 0 . toList
+size = L.foldl' (\c (_, Context' ps _) -> c + HS.size ps) 0 . toList
 
 infixl 9 !, !?
 -- | /O(log n)/ Return the 'Context' of a node in the graph.
@@ -181,29 +180,29 @@ contexts (Gr g) = HM.elems g
 -- TODO: Determine time complexity
 -- | /O(?)/ Return a list of the edges in the graph
 edges :: Gr a b -> [Edge a b]
-edges (Gr hm) = HM.foldl' (\lst ctx -> getTails ctx ++ lst) [] hm
+edges (Gr hm) = HM.foldlWithKey' (\lst p ctx -> getTails p ctx ++ lst) [] hm
   where
-    getTails (Context' _ p ss) = HS.foldl' (\lst (Tail l s) -> Edge p l s : lst) [] ss
+    getTails p (Context' _ ss) = HS.foldl' (\lst (Tail l s) -> Edge p l s : lst) [] ss
 
 --------------------------------------
 -- Inductive
 
 -- | Extract a node from the graph
 match :: (Eq a, Eq b, Hashable a, Hashable b) => b -> Gr a b -> Maybe (Context' a b, Gr a b)
-match n g = g !? n >>= \ctx -> Just (ctx, delCtx ctx g)
+match n g = g !? n >>= \ctx -> Just (ctx, delCtx n ctx g)
 {-# INLINE match #-}
 
 -- | Extract any node from the graph
 matchAny :: (Eq a, Eq b, Hashable a, Hashable b) => Gr a b -> Maybe (Context' a b, Gr a b)
-matchAny g = L.uncons (contexts g) >>= \(ctx,_) -> Just (ctx, delCtx ctx g)
+matchAny g = L.uncons (toList g) >>= \((l,ctx),_) -> Just (ctx, delCtx l ctx g)
 {-# INLINE matchAny #-}
 
 infixr 9 &
 -- TODO: Figure out how this should be implemented
 -- | Merge the 'Context' into the graph
 -- Currently deletes old node if present
-(&) :: (Eq a, Eq b, Hashable a, Hashable b) => Context' a b -> Gr a b -> Gr a b
-(&) ctx@(Context' _ l _) (Gr g) = Gr $ HM.insert l ctx g
+(&) :: (Eq a, Eq b, Hashable a, Hashable b) => b -> Context' a b -> Gr a b -> Gr a b
+(&) l ctx (Gr g) = Gr $ HM.insert l ctx g
 
 --------------------------------------
 -- Maps
@@ -219,7 +218,7 @@ nmap = nemapH id
 emap :: (Eq b, Eq c, Hashable b, Hashable c) => (a -> c) -> Gr a b -> Gr c b
 emap fe (Gr g) = Gr $ HM.map go g
   where
-    go (Context' ps l ss) = Context' (goHead ps) l (goTail ss)
+    go (Context' ps ss) = Context' (goHead ps) (goTail ss)
     goHead = HS.map (\(Head l p) -> Head (fe l) p)
     goTail = HS.map (\(Tail l s) -> Tail (fe l) s)
 
@@ -228,7 +227,7 @@ emap fe (Gr g) = Gr $ HM.map go g
 nemapH :: (Eq c, Eq d, Hashable c, Hashable d) => (a -> c) -> (b -> d) -> Gr a b -> Gr c d
 nemapH fe fn g = fromList $ map go $ toList g
   where
-    go (n, Context' ps _ ss) = (fn n, Context' (goHead ps) (fn n) (goTail ss))
+    go (n, Context' ps ss) = (fn n, Context' (goHead ps) (goTail ss))
     goHead = HS.map (\(Head l p) -> Head (fe l) (fn p))
     goTail = HS.map (\(Tail l s) -> Tail (fe l) (fn s))
 
@@ -262,7 +261,7 @@ member n (Gr g) = HM.member n g
 
 -- | /O(?)/ Return a list of the neighbors of the given node.
 neighbors :: (Eq b, Hashable b) => b -> Gr a b -> Maybe [b]
-neighbors n g = g !? n >>= \(Context' ps _ ss) ->
+neighbors n g = g !? n >>= \(Context' ps ss) ->
         let hds = HS.foldl' (\hs (Head _ p) -> HS.insert p hs) HS.empty ps
         in Just $ HS.toList $ HS.foldl' (\hs (Tail _ s) -> HS.insert s hs) hds ss
 
@@ -297,14 +296,14 @@ degree n g = (+) <$> inDegree n g <*> outDegree n g
 -- | /O(?)/ Return 'True' if the graph contains the given edge, 'False' otherwise.
 hasEdge :: (Eq a, Eq b, Hashable a, Hashable b) => Edge a b -> Gr a b -> Bool
 hasEdge (Edge p l s) g = case g !? p of
-    Just (Context' _ _ ss) -> HS.member (Tail l s) ss
+    Just (Context' _ ss) -> HS.member (Tail l s) ss
     Nothing -> False
 
 -- | TODO: FIX, should be true if undirected edge between nodes
 -- | /O(?)/ Return 'True' if the given nodes are neighbors, 'False' otherwise.
 hasNeighbor :: (Eq b, Hashable b) => b -> b -> Gr a b -> Bool
 hasNeighbor n1 n2 g = case g !? n1 of
-    Just (Context' _ _ ss) -> HS.foldl' (\t (Tail _ p) -> t || p == n2) False ss
+    Just (Context' _ ss) -> HS.foldl' (\t (Tail _ p) -> t || p == n2) False ss
     Nothing -> False
 
 -----------------------------
@@ -320,21 +319,19 @@ hasNeighbor n1 n2 g = case g !? n1 of
 -- | /O(n+e)/ Filter this graph by retaining only
 -- nodes that satisfy the predicate 'f'.
 nfilter :: (b -> Bool) -> Gr a b -> Gr a b
-nfilter f (Gr g) = Gr $ HM.mapMaybe go g
+nfilter f (Gr g) = Gr $ HM.mapMaybeWithKey go g
   where
-    go (Context' ps n ss) = if f n
+    go n (Context' ps ss) = if f n
         then Just (Context' (HS.filter (\(Head _ p) -> f p) ps)
-                            n
                             (HS.filter (\(Tail _ s) -> f s) ss))
         else Nothing
 
 -- | /O(n+e)/ Filter this graph by retaining only
 -- edges that satisfy the predicate 'f'.
 efilter :: (Edge a b -> Bool) -> Gr a b -> Gr a b
-efilter f (Gr g) = Gr $ HM.map go g
+efilter f (Gr g) = Gr $ HM.mapWithKey go g
   where
-    go (Context' ps n ss) = Context' (HS.filter (\(Head l p) -> f (Edge p l n)) ps)
-                                     n
+    go n (Context' ps ss) = Context' (HS.filter (\(Head l p) -> f (Edge p l n)) ps)
                                      (HS.filter (\(Tail l s) -> f (Edge n l s)) ss)
 
 ------------------------------
@@ -342,7 +339,7 @@ efilter f (Gr g) = Gr $ HM.map go g
 
 -- | Insert a node, deleting the current context if the node exists
 insNode :: (Eq b, Hashable b) => b -> Gr a b -> Gr a b
-insNode n (Gr g) = Gr $ HM.insert n (Context' HS.empty n HS.empty) g
+insNode n (Gr g) = Gr $ HM.insert n (Context' HS.empty HS.empty) g
 
 -- | Insert a node only if it does not already exist in the graph
 safeInsNode :: (Eq b, Hashable b) => b -> Gr a b -> Gr a b
@@ -358,13 +355,13 @@ insNodeWith f n c (Gr g) = Gr $ HM.insertWith f n c g
 -- | Remove a node and its edges
 delNode :: (Eq a, Eq b, Hashable a, Hashable b) => b -> Gr a b -> Gr a b
 delNode n g = case g !? n of
-                Just ctx -> delCtx ctx g
+                Just ctx -> delCtx n ctx g
                 Nothing -> g
 {-# INLINABLE delNode #-}
 
 -- | Remove a context
-delCtx :: (Eq a, Eq b, Hashable a, Hashable b) => Context' a b -> Gr a b -> Gr a b
-delCtx ctx@(Context' _ n _) (Gr graph) = Gr $ delHeads ctx $ delTails ctx $ HM.delete n graph
+delCtx :: (Eq a, Eq b, Hashable a, Hashable b) => b -> Context' a b -> Gr a b -> Gr a b
+delCtx n ctx (Gr graph) = Gr $ delHeads n ctx $ delTails n ctx $ HM.delete n graph
 
 -- TODO: Currently unsafe? check how adjust works
 insEdge :: (Eq a, Eq b, Hashable a, Hashable b) => Edge a b -> Gr a b -> Gr a b
@@ -382,19 +379,19 @@ delEdge e (Gr g) = Gr $ delTail e (delHead e g)
 insHead :: (Eq a, Eq b, Hashable a, Hashable b) => Edge a b -> GraphRep a b -> GraphRep a b
 insHead (Edge p l s) = HM.adjust go s
   where
-    go (Context' ps _l _ss) = Context' (HS.insert (Head l p) ps) _l _ss
+    go (Context' ps _ss) = Context' (HS.insert (Head l p) ps) _ss
 {-# INLINABLE insHead #-}
 
 -- | Remove a head from the graph
 delHead :: (Eq a, Eq b, Hashable a, Hashable b) => Edge a b -> GraphRep a b -> GraphRep a b
 delHead (Edge p l s) = HM.adjust go s
   where
-    go (Context' ps _l _ss) = Context' (HS.delete (Head l p) ps) _l _ss
+    go (Context' ps _ss) = Context' (HS.delete (Head l p) ps) _ss
 {-# INLINABLE delHead #-}
 
 -- | Remove the head ends of tails attached to the node
-delHeads :: (Eq a, Eq b, Hashable a, Hashable b) => Context' a b -> GraphRep a b -> GraphRep a b
-delHeads (Context' _ p ss) g = HS.foldl' go g ss
+delHeads :: (Eq a, Eq b, Hashable a, Hashable b) => b -> Context' a b -> GraphRep a b -> GraphRep a b
+delHeads p (Context' _ ss) g = HS.foldl' go g ss
   where
     go hm (Tail l s) = delHead (Edge p l s) hm
 {-# INLINABLE delHeads #-}
@@ -403,19 +400,19 @@ delHeads (Context' _ p ss) g = HS.foldl' go g ss
 insTail :: (Eq a, Eq b, Hashable a, Hashable b) => Edge a b -> GraphRep a b -> GraphRep a b
 insTail (Edge p l s) = HM.adjust go p
   where
-    go (Context' _ps _l ss) = Context' _ps _l (HS.insert (Tail l s) ss)
+    go (Context' _ps ss) = Context' _ps $ HS.insert (Tail l s) ss
 {-# INLINABLE insTail #-}
 
 -- | Remove a tail from the graph
 delTail :: (Eq a, Eq b, Hashable a, Hashable b) => Edge a b -> GraphRep a b -> GraphRep a b
 delTail (Edge p l s) = HM.adjust go p
   where
-    go (Context' _ps _l ss) = Context' _ps _l (HS.delete (Tail l s) ss)
+    go (Context' _ps ss) = Context' _ps $ HS.delete (Tail l s) ss
 {-# INLINABLE delTail #-}
 
 -- | Remove the head ends of tails attached to the node
-delTails :: (Eq a, Eq b, Hashable a, Hashable b) => Context' a b -> GraphRep a b -> GraphRep a b
-delTails (Context' ps s _) g = HS.foldl' go g ps
+delTails :: (Eq a, Eq b, Hashable a, Hashable b) => b -> Context' a b -> GraphRep a b -> GraphRep a b
+delTails s (Context' ps _) g = HS.foldl' go g ps
   where
     go hm (Head l p) = delTail (Edge p l s) hm
 {-# INLINABLE delTails #-}
@@ -448,7 +445,7 @@ fromListWith f = Gr . HM.fromListWith f
 -- | Pretty-print the graph
 pretty :: (Show a, Show b) => Gr a b -> String
 pretty (Gr g)
-    = HM.foldl' (\str (Context' ps n ss) -> show (HS.toList ps) ++ " -> "
+  = HM.foldlWithKey' (\str n (Context' ps ss) -> show (HS.toList ps) ++ " -> "
                                          ++ show n
                                          ++ " -> " ++ show (HS.toList ss)
                                          ++ "\n" ++ str) [] g

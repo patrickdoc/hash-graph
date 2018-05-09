@@ -68,7 +68,7 @@ minimumByWeight
 -- The generated list does not have any tails, match all the heads with tails
 fixTails :: (Eq a, Eq b, Hashable a, Hashable b) => [(b, Context' a b)] -> Gr a b
 fixTails ls
-    = let es = foldl' (\es' (s, Context' ps _ _) -> map (\(Head l p) -> Edge p l s) (HS.toList ps) ++ es') [] ls
+    = let es = foldl' (\es' (s, Context' ps _) -> map (\(Head l p) -> Edge p l s) (HS.toList ps) ++ es') [] ls
       in Gr $ foldl' (flip insTail) (HM.fromList ls) es
 
 minEdge :: Ord a => (b, Head a b) -> (b, Head a b) -> (b, Head a b)
