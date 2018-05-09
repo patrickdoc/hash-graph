@@ -1,10 +1,10 @@
 module Main where
 
-import Data.AbstractGraph
+import Data.AbstractGraph.Class
 
 import Test.Hspec
 import Test.Hspec.QuickCheck (prop)
-import Test.QuickCheck ((===))
+import Test.QuickCheck (Property, (===))
 
 main :: IO ()
 main = hspec library
@@ -29,7 +29,7 @@ library = describe "Abstract Graphs" $ do
 
     prop "sample finds updates" $
         let g1 n1 n2 = update mempty n1 n2 exE
-        \n1 n2 -> sample (g n1 n2) n1 n2 == exE
+        in \n1 n2 -> sample (g n1 n2) n1 n2 == exE
 
     prop "updateWith uses 'f old new'" $
         \n1 n2 -> sample (updateWith (flip const) n1 n2 exE) n1 n2 == exE
@@ -50,7 +50,6 @@ library = describe "Abstract Graphs" $ do
 
     prop "Left identity" $
       graphEq (mempty <> g) g
-      \n1 n2 -> sample (mempty <> g) n1 n2 === sample g n1 n2
 
     -- Only check if override
     -- prop "mconcat = foldr (<>) mempty" $
@@ -86,7 +85,7 @@ library = describe "Abstract Graphs" $ do
     prop "m >>= return = m" $
       graphEq (g >>= return) g
     
-    prop "m >>= (\x -> k x >>= h) = (m >>= k) >>= h" $ do
+    prop "m >>= (\\x -> k x >>= h) = (m >>= k) >>= h" $ do
       let k = return . fmap (*10)
           h = return . show
       graphEq (g >>= (\x -> k x >>= h)) ((g >>= k) >>= h)
