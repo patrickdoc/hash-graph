@@ -9,6 +9,7 @@ import Data.AbstractGraph.Class
 
 -- Classes
 import Control.Comonad
+import Data.Bifunctor
 import Data.Profunctor
 
 -- HashG
@@ -28,7 +29,7 @@ data HashG n e = HG
 lift0 :: e -> HashG n e
 lift0 = HG empty
 
-instance (Eq n, Hashable n) => Graph (HashG n e) where
+instance (Eq n, Hashable n) => TGraph (HashG n e) where
   type Node (HashG n e) = n
   type Edge (HashG n e) = e
 
@@ -47,9 +48,6 @@ instance (Eq n, Hashable n, Semigroup e) => Semigroup (HashG n e) where
 
 instance (Eq n, Hashable n, Monoid e) => Monoid (HashG n e) where
   mempty = lift0 mempty
-
-instance (Eq n, Hashable n) => FinGraph (HashG n e) where
-  nodes (HG g _) = keys g
 
 instance Foldable (HashG n) where
   foldr f acc (HG g _) = HM.foldr (flip (HM.foldr f)) acc g
@@ -82,10 +80,15 @@ instance Traversable (HashG n) where
 --           <$> ns <*> ns <*> ns <*> ns
 --       ns = nodes hg
 
+-- Might not be possible without profunctor support from upstream
 -- instance Profunctor HashG where
---   dimap ab cd g = HG $ \n1 n2 -> cd (unHG g (ab n1) (ab n2))
+--   dimap ab cd (HG g d) = HG () (cd d)
+--     where
+--       newG = fromList $ map (dimap ab cd) $ toList g
 
---instance Bifunctor HashG where
---  bimap :: (a -> b) -> (c -> d) -> HashG a c -> HashG b d
---  first = ????
---  second = fmap
+-- DANGER: have to consider ab not 1-1
+-- Must also 
+-- instance Bifunctor HashG where
+--   bimap ab cd (HG g d) = HG newG (cd d)
+--     where
+--       newG = fromList $ Prelude.map (bimap ab cd) $ HM.toList g

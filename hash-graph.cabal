@@ -24,7 +24,6 @@ source-repository head
 
 library
   exposed-modules:   Data.AbstractGraph.Class
-                     Data.AbstractGraph.Total
                      Data.AbstractGraph.Impl.Function
                      Data.AbstractGraph.Impl.Hash
   -- other-modules:       

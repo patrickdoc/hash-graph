@@ -6,7 +6,6 @@ module Impl.Function
 
 import Data.AbstractGraph.Class
 import Data.AbstractGraph.Impl.Function
-import Data.AbstractGraph.Total
 
 import Test.Hspec
 import Test.Hspec.QuickCheck (prop)

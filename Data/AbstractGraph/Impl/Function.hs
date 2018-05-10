@@ -18,7 +18,7 @@ newtype FunG n e = G { unG :: n -> n -> e }
 lift0 :: e -> FunG n e
 lift0 e = G (const (const e))
 
-instance (Eq n) => Graph (FunG n e) where
+instance (Eq n) => TGraph (FunG n e) where
   type Node (FunG n e) = n
   type Edge (FunG n e) = e
 
@@ -37,9 +37,6 @@ instance Semigroup e => Semigroup (FunG n e) where
 
 instance Monoid e => Monoid (FunG n e) where
   mempty = lift0 mempty
-
-instance (Bounded n, Enum n, Eq n) => FinGraph (FunG n e) where
-  nodes _ = enumFrom minBound
 
 instance (Bounded n, Enum n, Eq n) => Foldable (FunG n) where
   foldMap f g = foldMap f $ edges g
