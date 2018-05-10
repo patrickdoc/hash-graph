@@ -45,6 +45,7 @@ test-suite tests
   hs-source-dirs:    tests
   main-is:           AbstractTest.hs
   other-modules:     Impl.Function
+                     Impl.Hash
   build-depends:     base >=4.8 && <4.12
                    , hash-graph
                    , hspec

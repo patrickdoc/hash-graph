@@ -1,7 +1,9 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Data.AbstractGraph.Impl.Hash where
+module Data.AbstractGraph.Impl.Hash
+  ( HashG
+  ) where
 
 import Data.AbstractGraph.Class
 
@@ -33,9 +35,12 @@ instance (Eq n, Hashable n) => Graph (HashG n e) where
   constant = lift0
 
   -- This is bad
-  sample (HG g d) = \n1 n2 -> lookupDefault d n2 (lookupDefault empty n1 g)
+  sample (HG g d) = \n1 n2 ->
+    case HM.lookup n1 g of
+      Just hm -> lookupDefault d n2 hm
+      Nothing -> d
 
-  updateWith f (HG g d) src dst e = HG (adjust (adjust (f e) dst) src g) d
+  updateWith f (HG g d) src dst e = HG (insertWith (\_ old -> insertWith f dst e old) src (singleton dst e) g) d
 
 instance (Eq n, Hashable n, Semigroup e) => Semigroup (HashG n e) where
   (HG f df) <> (HG g dg) = HG (unionWith (unionWith (<>)) f g) (df <> dg)
@@ -70,7 +75,7 @@ instance Traversable (HashG n) where
 --   -- This is probably brutal in space/time
 --   -- Have to create HM n (HM n (HM n (HM n e)))
 --   -- where lookup dup = lookup (n1 <> n3) (n2 <> n4) g
---   duplicate hg@(HG g gd) = 
+--   duplicate hg@(HG g gd) =
 --     where
 --       hmap = HM.fromList $ filter (/= gd) $
 --         (\n1 n2 n3 n4-> (n1, (n2, (n3, (n4, sample g (n1 <> n3) (n2 <> n4)))))

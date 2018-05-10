@@ -15,7 +15,7 @@ graphEq :: (Eq e) => FunG Bool e -> FunG Bool e -> Bool -> Bool -> Bool
 graphEq g1 g2 = \n1 n2 -> sample g1 n1 n2 == sample g2 n1 n2
 
 funcTests :: Spec
-funcTests = describe "Abstract Graphs" $ do
+funcTests = describe "Function Abstract Graphs" $ do
   let exE = [42] :: [Int]
       gEmpty = mempty :: FunG Bool [Int]
       g = update gEmpty True False exE :: FunG Bool [Int]
