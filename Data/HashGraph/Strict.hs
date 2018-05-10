@@ -77,6 +77,7 @@ module Data.HashGraph.Strict (
     , Edge(..)
     , Head(..)
     , Tail(..)
+    , Context
     , insTail
     ) where
 
@@ -119,6 +120,9 @@ data Context' a b = Context'
     } deriving (Eq, Generic, Show)
 
 instance (NFData a, NFData b) => NFData (Context' a b)
+
+-- A node alongside its context'
+type Context a b = (b, Context' a b)
 
 -------------------------------
 -- Construction
@@ -172,11 +176,6 @@ infixl 9 !, !?
 nodes :: Gr a b -> [b]
 nodes (Gr g) = HM.keys g
 
--- | /O(n)/ Return a list of the contexts in the graph.
--- The list is produced lazily
-contexts :: Gr a b -> [Context' a b]
-contexts (Gr g) = HM.elems g
-
 -- TODO: Determine time complexity
 -- | /O(?)/ Return a list of the edges in the graph
 edges :: Gr a b -> [Edge a b]
@@ -188,12 +187,12 @@ edges (Gr hm) = HM.foldlWithKey' (\lst p ctx -> getTails p ctx ++ lst) [] hm
 -- Inductive
 
 -- | Extract a node from the graph
-match :: (Eq a, Eq b, Hashable a, Hashable b) => b -> Gr a b -> Maybe (Context' a b, Gr a b)
-match n g = g !? n >>= \ctx -> Just (ctx, delCtx n ctx g)
+match :: (Eq a, Eq b, Hashable a, Hashable b) => b -> Gr a b -> Maybe (Context a b, Gr a b)
+match n g = g !? n >>= \ctx -> Just ((n,ctx), delCtx n ctx g)
 {-# INLINE match #-}
 
 -- | Extract any node from the graph
-matchAny :: (Eq a, Eq b, Hashable a, Hashable b) => Gr a b -> Maybe ((b,Context' a b), Gr a b)
+matchAny :: (Eq a, Eq b, Hashable a, Hashable b) => Gr a b -> Maybe (Context a b, Gr a b)
 matchAny g = L.uncons (toList g) >>= \((l,ctx),_) -> Just ((l,ctx), delCtx l ctx g)
 {-# INLINE matchAny #-}
 

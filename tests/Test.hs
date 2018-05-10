@@ -76,7 +76,7 @@ library = describe "Strict Graphs" $ do
         describe "match" $ do
             let gr = G.mkGraph [] ['a'] :: TestGraph
             it "finds and removes nodes in the graph" $
-                G.match 'a' gr `shouldBe` Just (G.Context' HS.empty HS.empty, G.empty)
+                G.match 'a' gr `shouldBe` Just (('a',G.Context' HS.empty HS.empty), G.empty)
             it "doesn't find nodes not in the graph" $
                 G.match 'b' gr `shouldBe` Nothing
         describe "matchAny" $ do

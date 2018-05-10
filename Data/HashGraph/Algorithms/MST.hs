@@ -28,11 +28,10 @@ primAt start g = maybe g (primBoth g . (start,)) $ g !? start
 --------------------------------------
 -- Use just an optimal hash-map
 
-primMap :: (Eq b, Hashable a, Hashable b, Ord a) => Gr a b -> (b,Context' a b) -> Gr a b
+primMap :: (Eq b, Hashable a, Hashable b, Ord a) => Gr a b -> Context a b -> Gr a b
 primMap g (node,Context' _ sucs) = fixTails $ go HS.empty HM.empty (node,Context' HS.empty sucs)
   where
     -- Context has new ps (just the edge that was used to include this node) and old ss
-    --go :: HS.HashSet b -> HM.HashMap b (Head a b) -> (b,Context' a b) -> [(b, Context' a b)]
     go !visited !optimal (n,Context' ps ss) =
         let newVisited = HS.insert n visited
         in case pickNextNode (addTailsMap n newVisited optimal ss) of
@@ -78,7 +77,7 @@ minHead hd1@(Head l1 _) hd2@(Head l2 _) = if l1 < l2 then hd1 else hd2
 ----------------------------------
 -- Use just a min-heap
 
-primHeap :: (Eq a, Eq b, Hashable a, Hashable b, Ord a) => Gr a b -> (b,Context' a b) -> Gr a b
+primHeap :: (Eq a, Eq b, Hashable a, Hashable b, Ord a) => Gr a b -> Context a b -> Gr a b
 primHeap g (node,Context' _ sucs) = fixTails $ go (order g - 1) HS.empty H.empty (node,Context' HS.empty sucs)
   where
     go 0 _ _ _ = []
@@ -108,7 +107,7 @@ addTailsHeap p visited = HS.foldl' checkedInsert
 ----------------------------------
 -- Use both!
 
-primBoth :: (Eq a, Eq b, Hashable a, Hashable b, Ord a) => Gr a b -> (b,Context' a b) -> Gr a b
+primBoth :: (Eq a, Eq b, Hashable a, Hashable b, Ord a) => Gr a b -> Context a b -> Gr a b
 primBoth g (node,Context' _ sucs) = fixTails $ go HS.empty HM.empty H.empty (node,Context' HS.empty sucs)
   where
     go !visited !optimal !edgeHeap (n,Context' ps ss) =

@@ -17,6 +17,7 @@ import Data.HashGraph.Strict
 import Data.HashGraph.Algorithms.MST (prim, primAt)
 import Data.Hashable
 import qualified Data.HashSet as HS
+import Data.Maybe (maybe)
 
 {-
  - Articulation Point
@@ -34,18 +35,14 @@ import qualified Data.HashSet as HS
 
 -- | Breadth-first search
 bfs :: (Eq a, Eq b, Hashable a, Hashable b) => Gr a b -> [b]
-bfs g = case matchAny g of
-    Just (ctx,_) -> snd $ bfs_ g HS.empty [ctx]
-    Nothing -> []
+bfs g = maybe [] (\(ctx,_) -> snd $ bfs_ g HS.empty [ctx]) $ matchAny g
 {-# INLINABLE bfs #-}
 
 bfsn :: (Eq a, Eq b, Hashable a, Hashable b) => b -> Gr a b -> [b]
-bfsn n g = case match n g of
-    Just (ctx,_) -> snd $ bfs_ g HS.empty [(n,ctx)]
-    Nothing -> []
+bfsn n g = maybe [] (\(ctx,_) -> snd $ bfs_ g HS.empty [ctx]) $ match n g
 {-# INLINABLE bfsn #-}
 
-bfs_ :: (Eq b, Hashable b) => Gr a b -> HS.HashSet b -> [(b,Context' a b)] -> (HS.HashSet b, [b])
+bfs_ :: (Eq b, Hashable b) => Gr a b -> HS.HashSet b -> [Context a b] -> (HS.HashSet b, [b])
 bfs_ _ set [] = (set, [])
 bfs_ g !set cs =
     (\(newSet, parents, kids) ->
@@ -61,18 +58,14 @@ bfs_ g !set cs =
 
 -- | Depth-first search
 dfs :: (Eq a, Eq b, Hashable a, Hashable b) => Gr a b -> [b]
-dfs g = case matchAny g of
-    Just (ctx,_) -> snd $ dfs_ g HS.empty ctx
-    Nothing -> []
+dfs g = maybe [] (snd . dfs_ g HS.empty . fst) $ matchAny g
 {-# INLINABLE dfs #-}
 
 dfsn :: (Eq a, Eq b, Hashable a, Hashable b) => b -> Gr a b -> [b]
-dfsn n g = case match n g of
-    Just (ctx,_) -> snd $ dfs_ g HS.empty (n,ctx)
-    Nothing -> []
+dfsn n g = maybe [] (snd . dfs_ g HS.empty . fst) $ match n g
 {-# INLINABLE dfsn #-}
 
-dfs_ :: (Eq b, Hashable b) => Gr a b -> HS.HashSet b -> (b,Context' a b) -> (HS.HashSet b, [b])
+dfs_ :: (Eq b, Hashable b) => Gr a b -> HS.HashSet b -> Context a b -> (HS.HashSet b, [b])
 dfs_ g !set (n,Context' _ ss)
   = if HS.member n set
        then (set,[])
