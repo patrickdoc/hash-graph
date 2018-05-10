@@ -193,8 +193,8 @@ match n g = g !? n >>= \ctx -> Just (ctx, delCtx n ctx g)
 {-# INLINE match #-}
 
 -- | Extract any node from the graph
-matchAny :: (Eq a, Eq b, Hashable a, Hashable b) => Gr a b -> Maybe (Context' a b, Gr a b)
-matchAny g = L.uncons (toList g) >>= \((l,ctx),_) -> Just (ctx, delCtx l ctx g)
+matchAny :: (Eq a, Eq b, Hashable a, Hashable b) => Gr a b -> Maybe ((b,Context' a b), Gr a b)
+matchAny g = L.uncons (toList g) >>= \((l,ctx),_) -> Just ((l,ctx), delCtx l ctx g)
 {-# INLINE matchAny #-}
 
 infixr 9 &
