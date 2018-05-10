@@ -2,7 +2,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Data.AbstractGraph.Impl.Function
-  () where
+  ( FunG ) where
 
 import Data.AbstractGraph.Class
 
