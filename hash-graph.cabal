@@ -23,9 +23,6 @@ source-repository head
   location: https://github.com/patrickdoc/hash-graph.git
 
 library
-  -- exposed-modules:   Data.HashGraph.Strict
-  --                    Data.HashGraph.Algorithms
-  --                    Data.HashGraph.Algorithms.MST
   exposed-modules:   Data.AbstractGraph.Class
                      Data.AbstractGraph.Total
                      Data.AbstractGraph.Impl.Function
@@ -46,19 +43,8 @@ test-suite tests
   default-language:  Haskell2010
   type:              exitcode-stdio-1.0
   hs-source-dirs:    tests
-  main-is:           Test.hs
-  build-depends:     base >=4.8 && <4.12
-                   , hash-graph
-                   , hspec
-                   , QuickCheck
-                   , unordered-containers
-  ghc-options:       -Wall -with-rtsopts=-K1K
-
-test-suite abstract-tests
-  default-language:  Haskell2010
-  type:              exitcode-stdio-1.0
-  hs-source-dirs:    tests
   main-is:           AbstractTest.hs
+  other-modules:     Impl.Function
   build-depends:     base >=4.8 && <4.12
                    , hash-graph
                    , hspec
