@@ -76,26 +76,26 @@ library = describe "Strict Graphs" $ do
         describe "match" $ do
             let gr = G.mkGraph [] ['a'] :: TestGraph
             it "finds and removes nodes in the graph" $
-                G.match 'a' gr `shouldBe` Just (G.Context' HS.empty 'a' HS.empty, G.empty)
+                G.match 'a' gr `shouldBe` Just (('a',G.Context' HS.empty HS.empty), G.empty)
             it "doesn't find nodes not in the graph" $
                 G.match 'b' gr `shouldBe` Nothing
         describe "matchAny" $ do
             let gr = G.mkGraph [] ['a'] :: TestGraph
             it "finds nodes when the graph is non-empty" $
-                G.matchAny gr `shouldBe` Just (G.Context' HS.empty 'a' HS.empty, G.empty)
+                G.matchAny gr `shouldBe` Just (('a', G.Context' HS.empty HS.empty), G.empty)
             it "does not find a node when the graph is empty" $
                 G.matchAny (G.empty :: TestGraph) `shouldBe` Nothing
         --describe "(&)" $ do
         describe "(!)" $ do
             let gr = G.mkGraph [] ['a'] :: TestGraph
             it "finds nodes in the graph" $
-                gr G.! 'a' `shouldBe` G.Context' HS.empty 'a' HS.empty
+                gr G.! 'a' `shouldBe` G.Context' HS.empty HS.empty
             it "doesn't find nodes not in the graph" $
                 evaluate (gr G.! 'b') `shouldThrow` errorCall "Data.Graph.Inductive.Strict.(!): node not found"
         describe "(!?)" $ do
             let gr = G.mkGraph [] ['a'] :: TestGraph
             it "finds nodes in the graph" $
-                gr G.!? 'a' `shouldBe` Just (G.Context' HS.empty 'a' HS.empty)
+                gr G.!? 'a' `shouldBe` Just (G.Context' HS.empty HS.empty)
             it "doesn't find nodes not in the graph" $
                 gr G.!? 'b' `shouldBe` Nothing
         describe "nodes" $
