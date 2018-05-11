@@ -200,8 +200,8 @@ infixr 9 &
 -- TODO: Figure out how this should be implemented
 -- | Merge the 'Context' into the graph
 -- Currently deletes old node if present
-(&) :: (Eq a, Eq b, Hashable a, Hashable b) => b -> Context' a b -> Gr a b -> Gr a b
-(&) l ctx (Gr g) = Gr $ HM.insert l ctx g
+(&) :: (Eq a, Eq b, Hashable a, Hashable b) => Context a b -> Gr a b -> Gr a b
+(&) (l,ctx) (Gr g) = Gr $ HM.insert l ctx g
 
 --------------------------------------
 -- Maps
@@ -348,8 +348,8 @@ safeInsNode n g
       else insNode n g
 
 -- | Insert a node, using the combining function if it already exists
-insNodeWith :: (Eq b, Hashable b) => (Context' a b -> Context' a b -> Context' a b) -> b -> Context' a b -> Gr a b -> Gr a b
-insNodeWith f n c (Gr g) = Gr $ HM.insertWith f n c g
+insNodeWith :: (Eq b, Hashable b) => (Context' a b -> Context' a b -> Context' a b) -> Context a b -> Gr a b -> Gr a b
+insNodeWith f (n,c) (Gr g) = Gr $ HM.insertWith f n c g
 
 -- | Remove a node and its edges
 delNode :: (Eq a, Eq b, Hashable a, Hashable b) => b -> Gr a b -> Gr a b
@@ -424,18 +424,18 @@ delTails s (Context' ps _) g = HS.foldl' go g ps
 
 -- | /O(n)/ Return a list of this graph's elements. The list is
 -- produced lazily. The order of its elements is unspecified.
-toList :: Gr a b -> [(b, Context' a b)]
+toList :: Gr a b -> [Context a b]
 toList (Gr g) = HM.toList g
 
 -- | /O(n)/ Construct a graph with the supplied structure. If the
 -- list contains duplicate nodes, the later edges take precedence.
-fromList :: (Eq b, Hashable b) => [(b, Context' a b)] -> Gr a b
+fromList :: (Eq b, Hashable b) => [Context a b] -> Gr a b
 fromList = Gr . HM.fromList
 {-# INLINE fromList #-}
 
 -- | /O(n*log n)/ Construct a graph with the supplied structure. Uses
 -- the provided function to merge duplicate entries.
-fromListWith :: (Eq b, Hashable b) => (Context' a b -> Context' a b -> Context' a b) -> [(b, Context' a b)] -> Gr a b
+fromListWith :: (Eq b, Hashable b) => (Context' a b -> Context' a b -> Context' a b) -> [Context a b] -> Gr a b
 fromListWith f = Gr . HM.fromListWith f
 
 ------------------------------------
