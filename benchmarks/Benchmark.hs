@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Main where
 
 -- New library imports
@@ -64,15 +66,15 @@ fgl n = let graph = buildOld (oldEdges n) (oldNodes n) in
     -- Queries
     , bgroup "queries"
       [ bench "member"        $ whnf (Old.gelem (n-1)) graph
-      , bench "neighbors"     $ nf ((flip Old.neighbors) (n-1)) graph
-      , bench "preds"         $ nf ((flip Old.pre) (n-1)) graph
-      , bench "succs"         $ nf ((flip Old.suc) (n-1)) graph
-      , bench "inEdges"       $ nf ((flip Old.inn) (n-1)) graph
-      , bench "outEdges"      $ nf ((flip Old.out) (n-1)) graph
-      , bench "inDegree"      $ whnf ((flip Old.indeg) (n-1)) graph
-      , bench "outDegree"     $ whnf ((flip Old.outdeg) (n-1)) graph
-      , bench "degree"        $ whnf ((flip Old.deg) (n-1)) graph
-      , bench "hasEdge"       $ whnf ((flip Old.hasEdge) (n-1,n-2)) graph
+      , bench "neighbors"     $ nf (flip Old.neighbors (n-1)) graph
+      , bench "preds"         $ nf (flip Old.pre (n-1)) graph
+      , bench "succs"         $ nf (flip Old.suc (n-1)) graph
+      , bench "inEdges"       $ nf (flip Old.inn (n-1)) graph
+      , bench "outEdges"      $ nf (flip Old.out (n-1)) graph
+      , bench "inDegree"      $ whnf (flip Old.indeg (n-1)) graph
+      , bench "outDegree"     $ whnf (flip Old.outdeg (n-1)) graph
+      , bench "degree"        $ whnf (flip Old.deg (n-1)) graph
+      , bench "hasEdge"       $ whnf (flip Old.hasEdge (n-1,n-2)) graph
       , bench "hasNeighbor"   $ whnf ((\x y z -> Old.hasNeighbor z x y) (n-1) (n-2)) graph
       ]
 
@@ -100,7 +102,7 @@ fgl n = let graph = buildOld (oldEdges n) (oldNodes n) in
     -- Algorithms
     , bgroup "algorithms"
       [ bench "bfs" $ nf (Old.bfs (n-1)) graph
-      , bench "dfs" $ nf (Old.dfs [(n-1)]) graph
+      , bench "dfs" $ nf (Old.dfs [n-1]) graph
       , bench "mst" $ nf (Old.msTreeAt n) graph
       ]
     ]
@@ -134,7 +136,7 @@ hashGraph n = let graph = G.fromList (listGraph n) in
       , bench "(!?)"     $ whnf (G.!? n)  graph
       , bench "match"    $ nf (G.match n) graph
       , bench "matchAny" $ nf G.matchAny graph
-      , bench "(&)"      $ whnf ((G.Context' (HS.empty) (n+1) (HS.empty)) G.&) graph
+      , bench "(&)"      $ whnf ((n+1,G.Context' HS.empty HS.empty) G.&) graph
       ]
 
     -- Maps
@@ -271,9 +273,8 @@ oldCtxts n = first : [([(n'*n'',n'') | n'' <- [1..n']], n', n', [(n'*n'',n'') | 
 newEdges :: Int -> [G.Edge Int Int]
 newEdges n = tail $ (\x y -> G.Edge x (x*y) y) <$> [1..n] <*> [1..n]
 
-listGraph :: Int -> [(Int, G.Context' Int Int)]
+listGraph :: Int -> [G.Context Int Int]
 listGraph n = first : [ (n', G.Context' (HS.fromList [G.Head (n'*n'') n'' | n'' <- [1..n]])
-                                        n'
                                         (HS.fromList [G.Tail (n'*n'') n'' | n'' <- [1..n]])) | n' <- [2..n] ]
   where
-    first = (1, G.Context' (HS.fromList [G.Head n'' n'' | n'' <- [2..n]]) 1 (HS.fromList [G.Tail n'' n'' | n'' <- [2..n]]))
+    first = (1, G.Context' (HS.fromList [G.Head n'' n'' | n'' <- [2..n]]) (HS.fromList [G.Tail n'' n'' | n'' <- [2..n]]))
