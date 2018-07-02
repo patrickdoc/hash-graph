@@ -7,6 +7,7 @@ module Data.HashGraph.Algorithms (
   , dfsn
   , prim
   , primAt
+  , topSort
 
   -- * Paths?
   , pathTree
@@ -17,6 +18,7 @@ import Data.HashGraph.Strict
 import Data.HashGraph.Algorithms.MST (prim, primAt)
 import Data.Hashable
 import qualified Data.HashSet as HS
+import Data.Maybe (fromJust)
 
 {-
  - Articulation Point
@@ -97,3 +99,23 @@ pathTree n g = case match n g of
             else concatMap (\e@(Edge _ _ s) -> map (e:) (pathTree s g')) es
         Nothing -> [[]]
     Nothing -> []
+
+-----------------------------------
+-- Topological sorts
+
+topSort :: (Eq a, Eq b, Hashable a, Hashable b) => Gr a b -> Maybe [b]
+topSort g = go open
+  where
+    open = HS.fromList $ nodes g
+    -- while there are unmarked nodes, visit them
+    go o = snd $ HS.foldl' (\(unmarked, list) n -> visit n unmarked HS.empty list) (o, Just []) o
+      where
+    -- check for marks, then visit children, mark n, and add to list
+    visit _ o _ Nothing = (o, Nothing)
+    visit n o t l
+        | not (HS.member n o) = (o, l)
+        | HS.member n t = (o, Nothing)
+        | otherwise = (HS.delete n newO, fmap (n :) newL)
+      where
+        -- visit all children
+        (newO, newL) = foldl' (\(o',l') node -> visit node o' (HS.insert n t) l') (o,l) (fromJust $ succs n g)

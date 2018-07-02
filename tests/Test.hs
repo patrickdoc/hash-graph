@@ -229,10 +229,18 @@ library = describe "Strict Graphs" $ do
 algos :: Spec
 algos = describe "algorithms" $ do
     let es = [ G.Edge 'a' 1 'b', G.Edge 'a' 1 'c', G.Edge 'b' 1 'd', G.Edge 'b' 1 'e', G.Edge 'c' 1 'f', G.Edge 'c' 1 'g' ]
+        lineEs = [ G.Edge 'a' 1 'b', G.Edge 'b' 1 'c', G.Edge 'c' 1 'd' ]
         treeGraph = G.mkGraph es "abcdefg" :: TestGraph
+        lineGraph = G.mkGraph lineEs "abcd" :: TestGraph
     describe "bfs" $
         it "creates the correct list" $
             GA.bfs treeGraph `shouldBe` ['a','b','c','f','g','d','e']
     describe "dfs" $
         it "creates the correct list" $
             GA.dfs treeGraph `shouldBe` ['a','b','d','e','c','f','g']
+    describe "topSort" $
+        it "sorts a line" $
+            GA.topSort lineGraph `shouldBe` Just ['a','b','c','d']
+    describe "topSort" $
+        it "sorts a tree" $
+            GA.topSort treeGraph `shouldBe` Just ['a','c','g','f','b','e','d']
